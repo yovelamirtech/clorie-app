@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AddFlow } from '../addFlow';
-import type { Question } from '../claude';
+import type { Question } from '../ai';
 import { dayLabel } from '../dates';
 
 const OTHER = '__other__';

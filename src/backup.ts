@@ -82,6 +82,7 @@ export function parseBackup(text: string): Backup {
     settings: {
       dailyTarget: isNum(s.dailyTarget) ? s.dailyTarget : null,
       model: isStr(s.model) && s.model ? s.model : '',
+      ...(isStr(s.provider) ? { provider: s.provider } : {}),
       onboardingDone: true,
     },
     library: raw.library,
@@ -119,7 +120,8 @@ export function replaceWithBackup(cur: AppData, b: Backup): AppData {
     settings: {
       ...cur.settings,
       dailyTarget: b.settings.dailyTarget,
-      model: b.settings.model || cur.settings.model,
+      // A model name from another AI provider (older backups) doesn't work here; keep the current one.
+      model: (b.settings.provider === cur.settings.provider && b.settings.model) || cur.settings.model,
       onboardingDone: true,
     },
     entries: b.entries,

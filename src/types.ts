@@ -1,6 +1,7 @@
 export type Settings = {
   dailyTarget: number | null; // null = not set yet
   apiKey: string; // stored locally only, never in backups
+  provider?: string; // AI provider the key and model belong to (e.g. "gemini")
   model: string;
   onboardingDone: boolean;
 };

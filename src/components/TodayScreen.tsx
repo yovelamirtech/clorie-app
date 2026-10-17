@@ -13,10 +13,9 @@ type Props = {
   date: string;
   onDateChange: (d: string) => void;
   flow: AddFlow;
-  onOpenSettings: () => void;
 };
 
-export function TodayScreen({ date, onDateChange, flow, onOpenSettings }: Props) {
+export function TodayScreen({ date, onDateChange, flow }: Props) {
   const { entries, settings } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -66,12 +65,6 @@ export function TodayScreen({ date, onDateChange, flow, onOpenSettings }: Props)
             <p>עוד לא נרשם כלום {date === todayKey() ? 'היום' : 'ביום הזה'}.</p>
             <p>כתוב בחופשיות מה אכלת, למשל:</p>
             <p className="empty-example">2 פרוסות לחם לבן עם כף גדושה חמאת בוטנים, וחצי גביע קוטג׳ 5%</p>
-            {!settings.apiKey && (
-              <p>
-                כדי להתחיל צריך מפתח API.{' '}
-                <button className="link-btn" onClick={onOpenSettings}>להגדרות</button>
-              </p>
-            )}
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StoreProvider, useStore } from './store';
 import { useAddFlow } from './addFlow';
 import { todayKey } from './dates';
+import { PROVIDER } from './ai';
 import type { Tab } from './types';
 import { Gear } from './components/Icons';
 import { InstallBanner } from './components/InstallBanner';
@@ -89,9 +90,17 @@ function Shell() {
           <Gear />
         </button>
       </header>
+      {!settings.apiKey && tab !== 'settings' && (
+        <div className="install-banner">
+          <span>
+            כדי לחשב קלוריות צריך {PROVIDER.keyLabel} (חינמי).{' '}
+            <button className="link-btn" onClick={() => setTab('settings')}>להגדרות</button>
+          </span>
+        </div>
+      )}
       <InstallBanner />
       <main className="main">
-        {tab === 'today' && <TodayScreen date={date} onDateChange={setDate} flow={flow} onOpenSettings={() => setTab('settings')} />}
+        {tab === 'today' && <TodayScreen date={date} onDateChange={setDate} flow={flow} />}
         {tab === 'week' && <WeekScreen onOpenDay={(d) => { setDate(d); setTab('today'); }} />}
         {tab === 'library' && <LibraryScreen />}
         {tab === 'settings' && <SettingsScreen />}

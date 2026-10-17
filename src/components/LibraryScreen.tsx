@@ -25,7 +25,7 @@ export function LibraryScreen() {
         <input className="input" type="search" placeholder="חיפוש במאגר" value={query} onChange={(e) => setQuery(e.target.value)} />
         <button className="btn btn-primary" onClick={() => setEditing('new')}><Plus /> הוספה</button>
       </div>
-      <p className="hint">הפריטים כאן נשלחים ל-Claude בכל חישוב, והוא מעדיף אותם על פני ערכים כלליים.</p>
+      <p className="hint">הפריטים כאן נשלחים ל-AI בכל חישוב, והוא מעדיף אותם על פני ערכים כלליים.</p>
 
       <ul className="lib-list">
         {list.map((i) => (

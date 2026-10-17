@@ -188,7 +188,7 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
       {suggestion && (
         <Dialog title={suggestion.isUpdate ? 'לעדכן במאגר?' : 'לשמור במאגר?'} onClose={() => setSuggestion(null)}>
           <p className="hint">
-            חושב לפי: {suggestion.basis}. בפעם הבאה Claude ישתמש בערך הזה.
+            חושב לפי: {suggestion.basis}. בפעם הבאה ה-AI ישתמש בערך הזה.
           </p>
           <LibraryItemForm
             initial={suggestion.draft}

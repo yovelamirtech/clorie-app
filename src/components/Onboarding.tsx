@@ -12,7 +12,7 @@ export function Onboarding() {
     <div className="onboarding">
       <div className="onboarding-card">
         <h1>יומן קלוריות</h1>
-        <p>כותבים בחופשיות מה אכלתם, ו-Claude מחשב קלוריות וחלבון ומוסיף לסכום היומי.</p>
+        <p>כותבים בחופשיות מה אכלתם, ו-Gemini מחשב קלוריות וחלבון ומוסיף לסכום היומי.</p>
         <label className="label">
           מה יעד הקלוריות היומי שלך?
           <input

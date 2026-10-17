@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { analyzeFood, ClaudeError, type Question } from './claude';
+import { AiError, analyzeFood, type Question } from './ai';
 import { useStore } from './store';
 import type { Clarification, Entry } from './types';
 import { uid } from './util';
@@ -7,7 +7,7 @@ import { uid } from './util';
 export type Pending =
   | { phase: 'loading'; text: string; date: string; answers?: Clarification[] }
   | { phase: 'clarify'; text: string; date: string; questions: Question[] }
-  | { phase: 'error'; text: string; date: string; error: ClaudeError; answers?: Clarification[] };
+  | { phase: 'error'; text: string; date: string; error: AiError; answers?: Clarification[] };
 
 /** The add flow: send → (clarify →) save, or error with the text kept in the composer. */
 export function useAddFlow() {
@@ -43,7 +43,7 @@ export function useAddFlow() {
       setPending(null);
       setLastAddedId(entry.id);
     } catch (e) {
-      const error = e instanceof ClaudeError ? e : new ClaudeError('invalid', String(e));
+      const error = e instanceof AiError ? e : new AiError('invalid', String(e));
       setPending({ phase: 'error', text, date, error, answers });
       setDraft(text);
     }

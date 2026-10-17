@@ -1,13 +1,15 @@
 import { createStore, get, set, setMany, clear } from 'idb-keyval';
 import type { Entry, LibraryItem, Settings } from './types';
 import { seedLibrary } from './seed';
+import { PROVIDER } from './ai';
 
-// Default model: fast and cheap Haiku-class model. Editable in settings.
-export const DEFAULT_MODEL = 'claude-haiku-5-5';
+// Default model comes from the active AI provider. Editable in settings.
+export const DEFAULT_MODEL = PROVIDER.defaultModel;
 
 export const defaultSettings = (): Settings => ({
   dailyTarget: null,
   apiKey: '',
+  provider: PROVIDER.id,
   model: DEFAULT_MODEL,
   onboardingDone: false,
 });
@@ -38,6 +40,13 @@ export async function loadAll(): Promise<AppData> {
   };
   // First launch: persist the starter library.
   if (!library) await set('library', data.library, store);
+
+  // Key and model saved for another AI provider (e.g. the earlier Claude version) don't work here:
+  // drop them so the user is asked for a new key.
+  if (settings && settings.provider !== PROVIDER.id) {
+    data.settings = { ...data.settings, apiKey: '', model: DEFAULT_MODEL, provider: PROVIDER.id };
+    await set('settings', data.settings, store);
+  }
   return data;
 }
 

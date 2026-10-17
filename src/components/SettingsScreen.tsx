@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { DEFAULT_MODEL } from '../db';
-import { ClaudeError, testConnection } from '../claude';
+import { AiError, PROVIDER, testConnection } from '../ai';
 import { parseNum } from '../util';
 import { BackupSection } from './BackupSection';
 
@@ -51,7 +51,7 @@ export function SettingsScreen() {
       await testConnection({ apiKey: settings.apiKey, model: model.trim() || DEFAULT_MODEL });
       setTest({ s: 'ok' });
     } catch (e) {
-      if (e instanceof ClaudeError) setTest({ s: 'error', msg: e.message, detail: e.detail });
+      if (e instanceof AiError) setTest({ s: 'error', msg: e.message, detail: e.detail });
       else setTest({ s: 'error', msg: String(e) });
     }
   };
@@ -77,7 +77,7 @@ export function SettingsScreen() {
       </section>
 
       <section className="card">
-        <h2 className="section-title">מפתח API של Claude</h2>
+        <h2 className="section-title">{PROVIDER.keyLabel}</h2>
         {editingKey ? (
           <div className="field-row">
             <input
@@ -86,7 +86,7 @@ export function SettingsScreen() {
               autoComplete="off"
               autoCapitalize="off"
               spellCheck={false}
-              placeholder="sk-ant-..."
+              placeholder={PROVIDER.keyPlaceholder}
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && saveKey()}
@@ -115,9 +115,9 @@ export function SettingsScreen() {
           </div>
         )}
         <p className="hint">
-          המפתח נשמר רק במכשיר הזה ולא נכלל בגיבוי. משיגים מפתח ב-
-          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">console.anthropic.com</a>
-          {' '}(<bdi dir="ltr">Settings → API Keys</bdi>). מומלץ להגדיר שם מגבלת הוצאה חודשית (<bdi dir="ltr">Settings → Limits</bdi>).
+          המפתח נשמר רק במכשיר הזה ולא נכלל בגיבוי. משיגים מפתח בחינם ב-
+          <a href={PROVIDER.keyUrl} target="_blank" rel="noreferrer">{PROVIDER.keyUrlLabel}</a>
+          {' '}(<bdi dir="ltr">Get API key → Create API key</bdi>). בשכבה החינמית יש מגבלה על מספר הקריאות בדקה וביום.
         </p>
       </section>
 
