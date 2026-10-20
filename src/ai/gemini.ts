@@ -212,6 +212,22 @@ export function parseAnalyzeResponse(
   return result;
 }
 
+/**
+ * Requests for the configured model and, when it's in MODEL_CHAIN, every model after it — in that
+ * order. The relay tries them in sequence, moving to the next only on a rate-limit, so a request
+ * that waits out rate limits on the relay gets the same fallback the direct (in-app) path does.
+ */
+export function buildAnalyzeRequestChain(
+  cfg: ApiConfig,
+  text: string,
+  library: LibraryItem[],
+  answers?: Clarification[],
+): HttpRequest[] {
+  const models = [cfg.model];
+  for (let next = nextModelInChain(cfg.model); next; next = nextModelInChain(next)) models.push(next);
+  return models.map((model) => buildAnalyzeRequest({ ...cfg, model }, text, library, answers));
+}
+
 export async function analyzeFood(
   cfg: ApiConfig,
   text: string,
