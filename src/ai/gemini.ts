@@ -15,8 +15,9 @@ import {
 export const PROVIDER = {
   id: 'gemini',
   name: 'Gemini',
-  // Stable Flash model with a free tier (ai.google.dev/gemini-api/docs/models, checked 2026-10).
-  defaultModel: 'gemini-3.8-flash',
+  // Flash-Lite: text-only usage here, and the free tier gives it a higher request quota than Flash
+  // (ai.google.dev/gemini-api/docs/models, checked 2026-10).
+  defaultModel: 'gemini-3.8-flash-lite',
   keyLabel: 'מפתח Gemini API',
   keyPlaceholder: 'AIza...',
   keyUrl: 'https://aistudio.google.com/apikey',
