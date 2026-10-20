@@ -182,6 +182,7 @@ export function SettingsScreen() {
           )}
         </div>
         <p className="hint ltr-inline">ברירת מחדל: {DEFAULT_MODEL}</p>
+        <p className="hint">בחריגה ממגבלת הבקשות של המודל, האפליקציה עוברת אוטומטית למודל הבא ושומרת אותו כאן.</p>
       </section>
 
       <section className="card">
