@@ -13,8 +13,9 @@ import {
 } from './food';
 
 // Best model first; once its free-tier quota is used up for the day, analyzeFood falls back to the
-// next one (ai.google.dev/gemini-api/docs/models, checked 2026-10).
-export const MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.8-flash-lite'] as const;
+// next one. There's no 3.8 Flash-Lite yet, so the fallback is the 3.5 generation's Flash-Lite
+// (ai.google.dev/gemini-api/docs/models, checked 2026-10).
+export const MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'] as const;
 
 export const PROVIDER = {
   id: 'gemini',
