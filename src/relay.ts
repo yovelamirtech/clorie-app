@@ -80,8 +80,22 @@ export async function testRelay(relay: RelayConfig): Promise<void> {
   if (!res.ok || data?.service !== 'calories-relay') throw new RelayError('rejected', `HTTP ${res.status}`);
 }
 
+/**
+ * Just the relay's origin: "https://calories-relay.x.workers.dev". A pasted address can bring text along
+ * with it, or come without "https://", and the relay only answers at its root anyway.
+ */
+export function cleanRelayUrl(s: string): string {
+  const first = s.trim().split(/\s+/)[0] ?? '';
+  if (!first) return '';
+  try {
+    return new URL(/^https?:\/\//i.test(first) ? first : `https://${first}`).origin;
+  } catch {
+    return first;
+  }
+}
+
 /** The relay to use, or null when the app calls the AI provider directly. */
 export function relayConfig(s: { relayUrl?: string; relayToken?: string }): RelayConfig | null {
-  const url = s.relayUrl?.trim();
+  const url = cleanRelayUrl(s.relayUrl ?? '');
   return url ? { url, token: s.relayToken ?? '' } : null;
 }

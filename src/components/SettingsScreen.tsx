@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { DEFAULT_MODEL } from '../db';
 import { AiError, PROVIDER, testConnection } from '../ai';
-import { RelayError, relayConfig, testRelay } from '../relay';
+import { RelayError, cleanRelayUrl, relayConfig, testRelay } from '../relay';
 import { parseNum } from '../util';
 import { BackupSection } from './BackupSection';
 
@@ -53,7 +53,7 @@ export function SettingsScreen() {
   };
 
   const commitRelay = () => {
-    const u = relayUrl.trim().replace(/\/+$/, '');
+    const u = cleanRelayUrl(relayUrl);
     setRelayUrl(u);
     if (u !== (settings.relayUrl ?? '')) setRelayTest({ s: 'idle' });
     actions.updateSettings({ relayUrl: u });
