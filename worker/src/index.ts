@@ -1,11 +1,14 @@
-// Retry relay: holds one HTTP request per job and keeps retrying it until the upstream API gives a
-// final answer, so the app can be closed while a request waits out rate limits or outages.
-// Provider-neutral: the app builds the request and parses the answer; the relay only replays it.
+// Retry relay: holds one job (a request, or a fallback chain of requests) and keeps retrying it
+// until the upstream API gives a final answer, so the app can be closed while a request waits out
+// rate limits or outages.
+// Provider-neutral: the app builds the requests and parses the answer; the relay only replays them.
+// It only knows that a 429 means "try the next request in the chain instead of waiting" — it has no
+// idea what a request chain actually encodes (different models, for the app's case).
 //
-//   PUT    /jobs/:id  { url, headers, body }  → JobStatus   (idempotent: an existing job is kept)
-//   GET    /jobs/:id                          → JobStatus, or 404 when the relay doesn't know the job
-//   DELETE /jobs/:id                          → 204
-//   GET    /                                  → { ok: true } (connection test)
+//   PUT    /jobs/:id  { requests: [{ url, headers, body }, …] }  → JobStatus  (idempotent: an existing job is kept)
+//   GET    /jobs/:id                                             → JobStatus, or 404 when the relay doesn't know the job
+//   DELETE /jobs/:id                                             → 204
+//   GET    /                                                     → { ok: true } (connection test)
 //
 // Every request needs `authorization: Bearer <APP_TOKEN>` (a Worker secret). Without the secret set,
 // the relay refuses everything.
@@ -16,7 +19,8 @@ type UpstreamRequest = { url: string; headers: Record<string, string>; body: str
 type Reply = { status: number; body: string };
 
 type JobRecord = {
-  request?: UpstreamRequest; // dropped once the job is finished, since it holds the API key
+  requests?: UpstreamRequest[]; // dropped once the job is finished, since they hold the API key
+  requestIndex?: number; // which entry of `requests` is the active one
   createdAt: number;
   attempts: number;
   nextAttemptAt?: number;
@@ -29,12 +33,15 @@ export type JobStatus =
   | { state: 'done'; attempts: number; status: number; body: string };
 
 const RETRYABLE = new Set([0, 408, 429, 500, 502, 503, 504]);
+// A 429 (rate limit) switches to the next request in the chain instead of waiting, when there is one.
+const RATE_LIMIT_STATUS = 429;
 const BACKOFF_S = [15, 30, 60, 120, 300, 600, 900];
 const MAX_DELAY_S = 3600;
 const GIVE_UP_AFTER_MS = 24 * 3600_000;
 const KEEP_RESULT_MS = 7 * 24 * 3600_000;
 const ATTEMPT_TIMEOUT_MS = 90_000;
 const MAX_REQUEST_BYTES = 256 * 1024;
+const MAX_CHAIN_LENGTH = 5;
 
 /** Server-suggested wait in seconds: Retry-After, or Google's `"retryDelay": "37s"` in the error body. */
 function retryHint(res: Response, body: string): number {
@@ -48,9 +55,9 @@ export class Job extends DurableObject<Env> {
   private running = false;
 
   /** Create the job and make the first attempt right away, so the common case answers in one call. */
-  async start(request: UpstreamRequest): Promise<JobStatus> {
+  async start(requests: UpstreamRequest[]): Promise<JobStatus> {
     if (!(await this.ctx.storage.get<JobRecord>('job'))) {
-      await this.ctx.storage.put<JobRecord>('job', { request, createdAt: Date.now(), attempts: 0 });
+      await this.ctx.storage.put<JobRecord>('job', { requests, requestIndex: 0, createdAt: Date.now(), attempts: 0 });
       // Safety net: if this first attempt is cut off, the alarm picks the job up.
       await this.ctx.storage.setAlarm(Date.now() + ATTEMPT_TIMEOUT_MS + 30_000);
       await this.attempt();
@@ -82,35 +89,48 @@ export class Job extends DurableObject<Env> {
     if (this.running) return;
     this.running = true;
     try {
-      const job = await this.ctx.storage.get<JobRecord>('job');
-      if (!job?.request || job.result) return;
+      // A chain switch (rate limit, another request left to try) loops right away instead of
+      // waiting for the next alarm, so it doesn't cost the job a backoff delay.
+      for (;;) {
+        const job = await this.ctx.storage.get<JobRecord>('job');
+        if (!job?.requests?.length || job.result) return;
+        const idx = job.requestIndex ?? 0;
+        const req = job.requests[idx];
 
-      let reply: Reply;
-      let hint = 0;
-      try {
-        const res = await fetch(job.request.url, {
-          method: 'POST',
-          headers: job.request.headers,
-          body: job.request.body,
-          signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
-        });
-        reply = { status: res.status, body: await res.text() };
-        hint = retryHint(res, reply.body);
-      } catch (e) {
-        reply = { status: 0, body: String(e) };
-      }
+        let reply: Reply;
+        let hint = 0;
+        try {
+          const res = await fetch(req.url, {
+            method: 'POST',
+            headers: req.headers,
+            body: req.body,
+            signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          });
+          reply = { status: res.status, body: await res.text() };
+          hint = retryHint(res, reply.body);
+        } catch (e) {
+          reply = { status: 0, body: String(e) };
+        }
 
-      const now = Date.now();
-      const attempts = job.attempts + 1;
-      if (RETRYABLE.has(reply.status) && now - job.createdAt < GIVE_UP_AFTER_MS) {
-        const backoff = BACKOFF_S[Math.min(attempts, BACKOFF_S.length) - 1];
-        const nextAttemptAt = now + Math.min(MAX_DELAY_S, Math.max(backoff, hint)) * 1000;
-        await this.ctx.storage.put<JobRecord>('job', { ...job, attempts, nextAttemptAt, last: reply });
-        await this.ctx.storage.setAlarm(nextAttemptAt);
-      } else {
-        // Finished, or gave up: keep the answer for the app and forget the request with its API key.
-        await this.ctx.storage.put<JobRecord>('job', { createdAt: job.createdAt, attempts, result: reply });
-        await this.ctx.storage.setAlarm(now + KEEP_RESULT_MS);
+        const now = Date.now();
+        const attempts = job.attempts + 1;
+
+        if (reply.status === RATE_LIMIT_STATUS && idx < job.requests.length - 1) {
+          await this.ctx.storage.put<JobRecord>('job', { ...job, attempts, requestIndex: idx + 1, last: reply });
+          continue;
+        }
+
+        if (RETRYABLE.has(reply.status) && now - job.createdAt < GIVE_UP_AFTER_MS) {
+          const backoff = BACKOFF_S[Math.min(attempts, BACKOFF_S.length) - 1];
+          const nextAttemptAt = now + Math.min(MAX_DELAY_S, Math.max(backoff, hint)) * 1000;
+          await this.ctx.storage.put<JobRecord>('job', { ...job, attempts, nextAttemptAt, last: reply });
+          await this.ctx.storage.setAlarm(nextAttemptAt);
+        } else {
+          // Finished, or gave up: keep the answer for the app and forget the requests with their API key.
+          await this.ctx.storage.put<JobRecord>('job', { createdAt: job.createdAt, attempts, result: reply });
+          await this.ctx.storage.setAlarm(now + KEEP_RESULT_MS);
+        }
+        return;
       }
     } finally {
       this.running = false;
@@ -144,7 +164,7 @@ async function authorized(req: Request, env: Env): Promise<boolean> {
   return crypto.subtle.timingSafeEqual(await sha256(m[1]), await sha256(expected));
 }
 
-/** Validate a job body: an https POST to one of the allowed hosts (http only for localhost, for testing). */
+/** Validate one request: an https POST to one of the allowed hosts (http only for localhost, for testing). */
 function parseUpstream(raw: unknown, env: Env): UpstreamRequest | string {
   if (!raw || typeof raw !== 'object') return 'body must be a JSON object';
   const { url, headers, body } = raw as Record<string, unknown>;
@@ -162,6 +182,23 @@ function parseUpstream(raw: unknown, env: Env): UpstreamRequest | string {
   if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) return 'url must be https';
   if (!list(env.ALLOWED_HOSTS).includes(u.host)) return `host not allowed: ${u.host}`;
   return { url, headers: headers as Record<string, string>, body };
+}
+
+/** Validate a job body: one request, or a fallback chain of up to MAX_CHAIN_LENGTH, best first. */
+function parseJobBody(raw: unknown, env: Env): UpstreamRequest[] | string {
+  if (!raw || typeof raw !== 'object' || !Array.isArray((raw as Record<string, unknown>).requests)) {
+    return 'body must be a JSON object with a "requests" array';
+  }
+  const requests = (raw as { requests: unknown[] }).requests;
+  if (requests.length === 0) return 'requests must have at least one entry';
+  if (requests.length > MAX_CHAIN_LENGTH) return `requests must have at most ${MAX_CHAIN_LENGTH} entries`;
+  const parsed: UpstreamRequest[] = [];
+  for (const r of requests) {
+    const u = parseUpstream(r, env);
+    if (typeof u === 'string') return u;
+    parsed.push(u);
+  }
+  return parsed;
 }
 
 export default {
@@ -191,9 +228,9 @@ export default {
         } catch {
           return json({ error: 'body is not JSON' }, 400);
         }
-        const upstream = parseUpstream(raw, env);
-        if (typeof upstream === 'string') return json({ error: upstream }, 400);
-        return json(await stub.start(upstream));
+        const requests = parseJobBody(raw, env);
+        if (typeof requests === 'string') return json({ error: requests }, 400);
+        return json(await stub.start(requests));
       }
       case 'GET': {
         const status = await stub.status();

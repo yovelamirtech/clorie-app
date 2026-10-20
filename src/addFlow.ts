@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, analyzeFood, buildAnalyzeRequest, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
+import { AiError, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
 import { RelayError, deleteJob, getJob, putJob, relayConfig, type RelayReply } from './relay';
 import { useStore } from './store';
 import type { Clarification, Entry, QueueItem } from './types';
@@ -126,7 +126,7 @@ export function useAddFlow() {
         try {
           status = item.relay?.accepted ? await getJob(relay, item.attempt) : null;
           // Unknown to the relay (never arrived, or expired): send it (again).
-          status ??= await putJob(relay, item.attempt, buildAnalyzeRequest(cfg, item.text, library, item.answers));
+          status ??= await putJob(relay, item.attempt, buildAnalyzeRequestChain(cfg, item.text, library, item.answers));
         } catch (e) {
           if (e instanceof RelayError && e.kind === 'unreachable') {
             const relay = { attempts: 0, accepted: false, ...item.relay, offline: true };

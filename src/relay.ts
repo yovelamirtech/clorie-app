@@ -51,12 +51,16 @@ async function readStatus(res: Response): Promise<RelayStatus> {
   return data;
 }
 
-/** Hand a request to the relay. Idempotent per id: sending the same id again returns the existing job. */
-export async function putJob(relay: RelayConfig, id: string, req: HttpRequest): Promise<RelayStatus> {
+/**
+ * Hand a request (or a fallback chain, best first) to the relay. Idempotent per id: sending the
+ * same id again returns the existing job. The relay moves to the next request in the chain itself
+ * when one comes back rate-limited.
+ */
+export async function putJob(relay: RelayConfig, id: string, req: HttpRequest | HttpRequest[]): Promise<RelayStatus> {
   const res = await call(relay, jobPath(id), {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(req),
+    body: JSON.stringify({ requests: Array.isArray(req) ? req : [req] }),
   });
   return readStatus(res);
 }
