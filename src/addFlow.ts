@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, analyzeFood, buildAnalyzeRequest, parseAnalyzeResponse, type FoodResult } from './ai';
+import { AiError, analyzeFood, buildAnalyzeRequest, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
 import { RelayError, deleteJob, getJob, putJob, relayConfig, type RelayReply } from './relay';
 import { useStore } from './store';
 import type { Clarification, Entry, QueueItem } from './types';
@@ -100,13 +100,24 @@ export function useAddFlow() {
         const relay = relayConfig(settings);
 
         if (!relay) {
+          // On a rate-limit, step down the fallback chain (best model first) and retry right away;
+          // the model that worked is kept in settings so the next request starts there.
+          let model = cfg.model;
           let res: FoodResult;
-          try {
-            res = await analyzeFood(cfg, item.text, library, item.answers);
-          } catch (e) {
-            settle(item, () => { throw e; });
-            return;
+          for (;;) {
+            try {
+              res = await analyzeFood({ ...cfg, model }, item.text, library, item.answers);
+              break;
+            } catch (e) {
+              const next = e instanceof AiError && e.kind === 'rate_limit' ? nextModelInChain(model) : undefined;
+              if (!next) {
+                settle(item, () => { throw e; });
+                return;
+              }
+              model = next;
+            }
           }
+          if (model !== cfg.model) latest.current.actions.updateSettings({ model });
           settle(item, () => res);
           return;
         }

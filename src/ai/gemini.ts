@@ -12,12 +12,14 @@ import {
   validateResult,
 } from './food';
 
+// Best model first; once its free-tier quota is used up for the day, analyzeFood falls back to the
+// next one (ai.google.dev/gemini-api/docs/models, checked 2026-10).
+export const MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.8-flash-lite'] as const;
+
 export const PROVIDER = {
   id: 'gemini',
   name: 'Gemini',
-  // Flash-Lite: text-only usage here, and the free tier gives it a higher request quota than Flash
-  // (ai.google.dev/gemini-api/docs/models, checked 2026-10).
-  defaultModel: 'gemini-3.8-flash-lite',
+  defaultModel: MODEL_CHAIN[0],
   keyLabel: 'מפתח Gemini API',
   keyPlaceholder: 'AIza...',
   keyUrl: 'https://aistudio.google.com/apikey',
@@ -34,6 +36,12 @@ type GeminiError = {
 
 /** Accept "gemini-x" or "models/gemini-x". */
 const modelId = (m: string) => m.trim().replace(/^models\//, '');
+
+/** The next model in MODEL_CHAIN after `model`, or undefined if it's the last one (or not in the chain). */
+export function nextModelInChain(model: string): string | undefined {
+  const idx = MODEL_CHAIN.findIndex((m) => m === modelId(model));
+  return idx >= 0 && idx < MODEL_CHAIN.length - 1 ? MODEL_CHAIN[idx + 1] : undefined;
+}
 
 /** Map a non-2xx Gemini response to an AiError. */
 function httpError(httpStatus: number, bodyText: string): AiError {
