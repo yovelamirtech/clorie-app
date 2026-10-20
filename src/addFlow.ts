@@ -100,8 +100,9 @@ export function useAddFlow() {
         const relay = relayConfig(settings);
 
         if (!relay) {
-          // On a rate-limit, step down the fallback chain (best model first) and retry right away;
-          // the model that worked is kept in settings so the next request starts there.
+          // Every request starts from the configured model; on a rate-limit, step down the fallback
+          // chain and retry right away, for this request only — settings aren't touched, so the next
+          // request starts from the configured model again.
           let model = cfg.model;
           let res: FoodResult;
           for (;;) {
@@ -117,7 +118,6 @@ export function useAddFlow() {
               model = next;
             }
           }
-          if (model !== cfg.model) latest.current.actions.updateSettings({ model });
           settle(item, () => res);
           return;
         }
