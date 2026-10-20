@@ -6,8 +6,8 @@ import { ConfirmDialog, Dialog } from './Dialog';
 type ImportStep = { backup: Backup; confirmReplace: boolean } | null;
 
 export function BackupSection() {
-  const { settings, entries, library, ui, actions } = useStore();
-  const data = { settings, entries, library, ui };
+  const { settings, entries, library, ui, queue, actions } = useStore();
+  const data = { settings, entries, library, ui, queue };
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);

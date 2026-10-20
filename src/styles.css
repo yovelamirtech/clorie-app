@@ -361,6 +361,7 @@ a { color: var(--accent-strong); }
 }
 .pending-error { border: 1px solid var(--over); background: var(--over-soft); }
 .pending-day { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; }
+.pending-status { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
 
 .loading { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pending-text {

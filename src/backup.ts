@@ -9,14 +9,16 @@ export type Backup = {
   app: typeof APP_ID;
   version: number;
   exportedAt: string;
-  settings: Omit<Settings, 'apiKey'>;
+  settings: Omit<Settings, 'apiKey' | 'relayToken'>;
   library: LibraryItem[];
   entries: Entry[];
 };
 
 export function buildBackup(d: AppData): Backup {
-  const { apiKey: _omit, ...settings } = d.settings;
-  void _omit;
+  // Secrets stay on the device.
+  const { apiKey: _key, relayToken: _token, ...settings } = d.settings;
+  void _key;
+  void _token;
   return { app: APP_ID, version: VERSION, exportedAt: new Date().toISOString(), settings, library: d.library, entries: d.entries };
 }
 

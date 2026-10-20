@@ -1,0 +1,3 @@
+# Local dev only: copy to .dev.vars (gitignored). Not used in production.
+APP_TOKEN=dev-token-0123456789abcdef0123456789abcdef
+ALLOWED_ORIGINS=http://localhost:5173,http://localhost:4173

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { DEFAULT_MODEL } from '../db';
 import { AiError, PROVIDER, testConnection } from '../ai';
+import { RelayError, relayConfig, testRelay } from '../relay';
 import { parseNum } from '../util';
 import { BackupSection } from './BackupSection';
 
@@ -17,10 +18,16 @@ export function SettingsScreen() {
   const [keyInput, setKeyInput] = useState('');
   const [model, setModel] = useState(settings.model);
   const [test, setTest] = useState<TestState>({ s: 'idle' });
+  const [relayUrl, setRelayUrl] = useState(settings.relayUrl ?? '');
+  const [relayTest, setRelayTest] = useState<TestState>({ s: 'idle' });
+  const [editingToken, setEditingToken] = useState(!settings.relayToken);
+  const [tokenInput, setTokenInput] = useState('');
 
   // Pick up changes made elsewhere (restore from backup).
   useEffect(() => setTarget(settings.dailyTarget?.toString() ?? ''), [settings.dailyTarget]);
   useEffect(() => setModel(settings.model), [settings.model]);
+  useEffect(() => setRelayUrl(settings.relayUrl ?? ''), [settings.relayUrl]);
+  useEffect(() => { if (!settings.relayToken) setEditingToken(true); }, [settings.relayToken]);
   useEffect(() => { if (!settings.apiKey) setEditingKey(true); }, [settings.apiKey]);
 
   const commitTarget = () => {
@@ -43,6 +50,40 @@ export function SettingsScreen() {
     const m = model.trim() || DEFAULT_MODEL;
     setModel(m);
     actions.updateSettings({ model: m });
+  };
+
+  const commitRelay = () => {
+    const u = relayUrl.trim().replace(/\/+$/, '');
+    setRelayUrl(u);
+    if (u !== (settings.relayUrl ?? '')) setRelayTest({ s: 'idle' });
+    actions.updateSettings({ relayUrl: u });
+  };
+
+  const saveToken = () => {
+    const t = tokenInput.trim();
+    if (!t) return;
+    actions.updateSettings({ relayToken: t });
+    setTokenInput('');
+    setEditingToken(false);
+    setRelayTest({ s: 'idle' });
+  };
+
+  const runRelayTest = async () => {
+    const relay = relayConfig({ relayUrl, relayToken: settings.relayToken });
+    if (!relay) return;
+    setRelayTest({ s: 'testing' });
+    try {
+      await testRelay(relay);
+      setRelayTest({ s: 'ok' });
+    } catch (e) {
+      const kind = e instanceof RelayError ? e.kind : 'rejected';
+      const msg = {
+        unreachable: 'אין תשובה מהשרת. כדאי לבדוק את הכתובת ואת החיבור.',
+        auth: 'השרת דחה את הסיסמה. כדאי לבדוק שהיא זהה לסיסמה שהוגדרה בשרת.',
+        rejected: 'הכתובת לא מובילה לשרת הניסיונות החוזרים.',
+      }[kind];
+      setRelayTest({ s: 'error', msg, detail: (e as Error).message });
+    }
   };
 
   const runTest = async () => {
@@ -141,6 +182,70 @@ export function SettingsScreen() {
           )}
         </div>
         <p className="hint ltr-inline">ברירת מחדל: {DEFAULT_MODEL}</p>
+      </section>
+
+      <section className="card">
+        <h2 className="section-title">שרת לניסיונות חוזרים</h2>
+        <div className="field-row">
+          <input
+            className="input ltr"
+            type="url"
+            inputMode="url"
+            autoCapitalize="off"
+            spellCheck={false}
+            placeholder="https://calories-relay.<שם>.workers.dev"
+            value={relayUrl}
+            onChange={(e) => setRelayUrl(e.target.value)}
+            onBlur={commitRelay}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          />
+        </div>
+        {editingToken ? (
+          <div className="field-row">
+            <input
+              className="input ltr"
+              type="password"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="סיסמה לשרת (APP_TOKEN)"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveToken()}
+            />
+            <button className="btn btn-primary" onClick={saveToken} disabled={!tokenInput.trim()}>שמירה</button>
+            {settings.relayToken && (
+              <button className="btn" onClick={() => { setEditingToken(false); setTokenInput(''); }}>ביטול</button>
+            )}
+          </div>
+        ) : (
+          <div className="field-row">
+            <code className="key-mask ltr">{maskKey(settings.relayToken ?? '')}</code>
+            <button className="btn" onClick={() => setEditingToken(true)}>החלפה</button>
+          </div>
+        )}
+        <div className="field-row">
+          <button
+            className="btn"
+            onClick={runRelayTest}
+            disabled={!relayUrl.trim() || !settings.relayToken || relayTest.s === 'testing'}
+          >
+            {relayTest.s === 'testing' ? 'בודק…' : 'בדיקת חיבור'}
+          </button>
+          {relayTest.s === 'ok' && <span className="ok-text">השרת זמין ✓</span>}
+        </div>
+        {relayTest.s === 'error' && (
+          <div className="error-box">
+            <div>{relayTest.msg}</div>
+            {relayTest.detail && <div className="error-detail ltr">{relayTest.detail}</div>}
+          </div>
+        )}
+        <p className="hint">
+          אופציונלי. עם שרת, בקשה שנתקלת בחריגה ממגבלה או בעומס ממשיכה לנסות שוב בשרת עד 24 שעות, גם כשהאפליקציה
+          סגורה, והרישום נכנס בפעם הבאה שפותחים אותה. המפתח נשלח לשרת יחד עם הבקשה ונמחק ממנו כשהיא מסתיימת.
+          הסיסמה נשמרת רק במכשיר הזה ולא נכללת בגיבוי.
+          בלי שרת, הבקשות נשלחות ישירות מהטלפון.
+        </p>
       </section>
 
       <BackupSection />

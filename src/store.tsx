@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Entry, LibraryItem, Settings } from './types';
+import type { Entry, LibraryItem, QueueItem, Settings } from './types';
 import {
   type AppData,
   type UiPrefs,
@@ -8,6 +8,7 @@ import {
   saveAll,
   saveEntries,
   saveLibrary,
+  saveQueue,
   saveSettings,
   saveUi,
   wipeAll,
@@ -22,6 +23,8 @@ type Actions = {
   upsertLibraryItem: (item: LibraryItem) => void;
   deleteLibraryItem: (id: string) => void;
   updateUi: (patch: Partial<UiPrefs>) => void;
+  /** Applied synchronously to the latest queue, so `fn` can also report what it found. */
+  updateQueue: (fn: (q: QueueItem[]) => QueueItem[]) => void;
   replaceAll: (d: AppData) => Promise<void>;
   resetAll: () => Promise<void>;
 };
@@ -89,13 +92,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         commit({ ...cur(), ui });
         saveUi(ui).catch(logErr);
       },
+      updateQueue(fn) {
+        const queue = fn(cur().queue);
+        commit({ ...cur(), queue });
+        saveQueue(queue).catch(logErr);
+      },
       async replaceAll(d) {
         await saveAll(d);
         commit(d);
       },
       async resetAll() {
         await wipeAll();
-        const fresh: AppData = { settings: defaultSettings(), entries: [], library: seedLibrary(), ui: {} };
+        const fresh: AppData = { settings: defaultSettings(), entries: [], library: seedLibrary(), ui: {}, queue: [] };
         await saveAll(fresh);
         commit(fresh);
       },

@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "calories-relay",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-15",
+  "durable_objects": {
+    "bindings": [{ "name": "JOBS", "class_name": "Job" }]
+  },
+  // SQLite-backed Durable Objects are available on the Workers free plan.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Job"] }],
+  "vars": {
+    // Hosts the relay may call (comma-separated). Keeps it from being an open proxy.
+    "ALLOWED_HOSTS": "generativelanguage.googleapis.com",
+    // Browser origins allowed to use the relay (comma-separated). Local dev adds localhost in .dev.vars.
+    "ALLOWED_ORIGINS": "https://yovelamirtech.github.io"
+  },
+  // The password the app must send. Set it with `npx wrangler secret put APP_TOKEN` (never in this file).
+  "secrets": { "required": ["APP_TOKEN"] },
+  // No request logs: requests carry the relay password, and job bodies carry the Gemini key.
+  "observability": { "enabled": false }
+}

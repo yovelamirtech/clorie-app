@@ -5,6 +5,7 @@ import {
   AiError,
   type ApiConfig,
   type FoodResult,
+  type HttpRequest,
   SYSTEM_PROMPT,
   buildUserMessage,
   invalid,
@@ -33,57 +34,56 @@ type GeminiError = {
 /** Accept "gemini-x" or "models/gemini-x". */
 const modelId = (m: string) => m.trim().replace(/^models\//, '');
 
-async function request<T>(apiKey: string, path: string, body?: unknown): Promise<T> {
-  if (!apiKey.trim()) throw new AiError('no_key');
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new AiError('network');
-
-  let res: Response;
+/** Map a non-2xx Gemini response to an AiError. */
+function httpError(httpStatus: number, bodyText: string): AiError {
+  let err: GeminiError['error'] = {};
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      method: body === undefined ? 'GET' : 'POST',
-      headers: {
-        'x-goog-api-key': apiKey.trim(),
-        ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    err = (JSON.parse(bodyText) as GeminiError).error ?? {};
+  } catch {
+    /* non-JSON error body */
+  }
+  const status = err.status ?? '';
+  const message = err.message ?? '';
+  const reason = err.details?.find((d) => d.reason)?.reason ?? '';
+  const detail = [status, message].filter(Boolean).join(': ') || `HTTP ${httpStatus}`;
+
+  if (httpStatus === 429 || status === 'RESOURCE_EXHAUSTED') return new AiError('rate_limit', detail, FREE_TIER_MESSAGE);
+  // Google answers a bad key with 400 API_KEY_INVALID, and a key without access with 403.
+  if (httpStatus === 401 || httpStatus === 403 || reason.startsWith('API_KEY') || /api key/i.test(message)) {
+    return new AiError('auth', detail);
+  }
+  if (httpStatus === 404) return new AiError('model', detail);
+  if (httpStatus === 503 || status === 'UNAVAILABLE') return new AiError('overloaded', detail);
+  if (httpStatus >= 500) return new AiError('server', detail);
+  return new AiError('bad_request', detail);
+}
+
+const authHeaders = (apiKey: string) => {
+  if (!apiKey.trim()) throw new AiError('no_key');
+  return { 'x-goog-api-key': apiKey.trim() };
+};
+
+/** Send a request from the browser. Returns the HTTP status and body text; throws AiError('network'). */
+async function send(req: { url: string; method: string; headers: Record<string, string>; body?: string }) {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new AiError('network');
+  try {
+    const res = await fetch(req.url, { method: req.method, headers: req.headers, body: req.body });
+    return { status: res.status, body: await res.text() };
   } catch (e) {
     throw new AiError('network', String(e));
-  }
-
-  if (!res.ok) {
-    let err: GeminiError['error'] = {};
-    try {
-      err = ((await res.json()) as GeminiError).error ?? {};
-    } catch {
-      /* non-JSON error body */
-    }
-    const status = err.status ?? '';
-    const message = err.message ?? '';
-    const reason = err.details?.find((d) => d.reason)?.reason ?? '';
-    const detail = [status, message].filter(Boolean).join(': ') || `HTTP ${res.status}`;
-
-    if (res.status === 429 || status === 'RESOURCE_EXHAUSTED') throw new AiError('rate_limit', detail, FREE_TIER_MESSAGE);
-    // Google answers a bad key with 400 API_KEY_INVALID, and a key without access with 403.
-    if (res.status === 401 || res.status === 403 || reason.startsWith('API_KEY') || /api key/i.test(message)) {
-      throw new AiError('auth', detail);
-    }
-    if (res.status === 404) throw new AiError('model', detail);
-    if (res.status === 503 || status === 'UNAVAILABLE') throw new AiError('overloaded', detail);
-    if (res.status >= 500) throw new AiError('server', detail);
-    throw new AiError('bad_request', detail);
-  }
-
-  try {
-    return (await res.json()) as T;
-  } catch (e) {
-    throw new AiError('invalid', String(e));
   }
 }
 
 /** "בדיקת חיבור": list the models, and make sure the configured one is available to this key. */
 export async function testConnection(cfg: ApiConfig): Promise<void> {
-  const data = await request<{ models?: { name: string }[] }>(cfg.apiKey, '/models?pageSize=1000');
+  const res = await send({ url: `${BASE_URL}/models?pageSize=1000`, method: 'GET', headers: authHeaders(cfg.apiKey) });
+  if (res.status < 200 || res.status >= 300) throw httpError(res.status, res.body);
+  let data: { models?: { name: string }[] };
+  try {
+    data = JSON.parse(res.body);
+  } catch (e) {
+    throw new AiError('invalid', String(e));
+  }
   const wanted = `models/${modelId(cfg.model)}`;
   if (data.models && !data.models.some((m) => m.name === wanted)) {
     throw new AiError('model', `${wanted} is not in the model list for this key`);
@@ -142,16 +142,17 @@ type GenerateResponse = {
 
 const BLOCKED_FINISH = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION']);
 
-export async function analyzeFood(
+/** The generateContent request for a food description, ready to send directly or through the relay. */
+export function buildAnalyzeRequest(
   cfg: ApiConfig,
   text: string,
   library: LibraryItem[],
   answers?: Clarification[],
-): Promise<FoodResult> {
-  const data = await request<GenerateResponse>(
-    cfg.apiKey,
-    `/models/${encodeURIComponent(modelId(cfg.model))}:generateContent`,
-    {
+): HttpRequest {
+  return {
+    url: `${BASE_URL}/models/${encodeURIComponent(modelId(cfg.model))}:generateContent`,
+    headers: { ...authHeaders(cfg.apiKey), 'content-type': 'application/json' },
+    body: JSON.stringify({
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
       contents: [{ role: 'user', parts: [{ text: buildUserMessage(text, library, answers) }] }],
       generationConfig: {
@@ -160,8 +161,25 @@ export async function analyzeFood(
         // Thinking tokens count toward this limit, so leave plenty of room.
         maxOutputTokens: 8192,
       },
-    },
-  );
+    }),
+  };
+}
+
+/** Turn the HTTP answer to buildAnalyzeRequest into a result. Throws AiError. status 0 = no answer (network). */
+export function parseAnalyzeResponse(
+  status: number,
+  bodyText: string,
+  library: LibraryItem[],
+  answers?: Clarification[],
+): FoodResult {
+  if (status === 0) throw new AiError('network', bodyText);
+  if (status < 200 || status >= 300) throw httpError(status, bodyText);
+  let data: GenerateResponse;
+  try {
+    data = JSON.parse(bodyText) as GenerateResponse;
+  } catch (e) {
+    throw new AiError('invalid', String(e));
+  }
 
   if (data.promptFeedback?.blockReason) throw new AiError('refusal', data.promptFeedback.blockReason);
   const candidate = data.candidates?.[0];
@@ -182,4 +200,14 @@ export async function analyzeFood(
   const result = validateResult(parsed, library);
   if (answers?.length && result.status === 'needs_clarification') invalid('asked again after answers');
   return result;
+}
+
+export async function analyzeFood(
+  cfg: ApiConfig,
+  text: string,
+  library: LibraryItem[],
+  answers?: Clarification[],
+): Promise<FoodResult> {
+  const res = await send({ method: 'POST', ...buildAnalyzeRequest(cfg, text, library, answers) });
+  return parseAnalyzeResponse(res.status, res.body, library, answers);
 }

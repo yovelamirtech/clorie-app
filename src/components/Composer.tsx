@@ -5,10 +5,9 @@ type Props = {
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
-  busy: boolean;
 };
 
-export function Composer({ value, onChange, onSend, busy }: Props) {
+export function Composer({ value, onChange, onSend }: Props) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -34,7 +33,7 @@ export function Composer({ value, onChange, onSend, busy }: Props) {
     };
   }, []);
 
-  const canSend = !busy && value.trim().length > 0;
+  const canSend = value.trim().length > 0;
 
   return (
     <div className="composer" ref={wrap}>

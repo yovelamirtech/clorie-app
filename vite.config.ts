@@ -1,13 +1,37 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // On GitHub Pages the site lives at /<repo-name>/. The deploy workflow sets BASE_PATH.
 const base = process.env.BASE_PATH || '/';
 
+// Content Security Policy for the built site (GitHub Pages can't send headers, so it's a <meta> tag).
+// The page may only talk to itself, Gemini and the retry relay on workers.dev, so even injected code
+// couldn't send the API key anywhere else. Build only: the dev server needs inline scripts for HMR.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "img-src 'self' data:",
+  "font-src 'self'",
+  "connect-src 'self' https://generativelanguage.googleapis.com https://*.workers.dev",
+  "manifest-src 'self'",
+  "worker-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
+
+const cspPlugin: Plugin = {
+  name: 'csp-meta',
+  apply: 'build',
+  transformIndexHtml: () => [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: CSP }, injectTo: 'head-prepend' }],
+};
+
 export default defineConfig({
   base,
   plugins: [
+    cspPlugin,
     react(),
     VitePWA({
       registerType: 'autoUpdate',

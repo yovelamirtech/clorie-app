@@ -41,8 +41,6 @@ export function TodayScreen({ date, onDateChange, flow }: Props) {
     return () => clearTimeout(t);
   }, [flashId]);
 
-  const busy = flow.pending?.phase === 'loading' || flow.pending?.phase === 'clarify';
-
   return (
     <div className="screen today">
       <DateHeader date={date} onChange={onDateChange} />
@@ -58,9 +56,18 @@ export function TodayScreen({ date, onDateChange, flow }: Props) {
             onToggle={() => setExpandedId(expandedId === e.id ? null : e.id)}
           />
         ))}
-        <PendingCard flow={flow} viewDate={date} />
+        {flow.queue.map((item) => (
+          <PendingCard
+            key={item.id}
+            item={item}
+            viewDate={date}
+            onAnswer={(answers) => flow.answer(item.id, answers)}
+            onRetry={() => flow.retry(item.id)}
+            onCancel={() => flow.cancel(item.id)}
+          />
+        ))}
 
-        {dayEntries.length === 0 && !flow.pending && (
+        {dayEntries.length === 0 && flow.queue.length === 0 && (
           <div className="empty">
             <p>עוד לא נרשם כלום {date === todayKey() ? 'היום' : 'ביום הזה'}.</p>
             <p>כתוב בחופשיות מה אכלת, למשל:</p>
@@ -69,7 +76,7 @@ export function TodayScreen({ date, onDateChange, flow }: Props) {
         )}
       </div>
 
-      <Composer value={flow.draft} onChange={flow.setDraft} onSend={() => flow.send(date)} busy={busy} />
+      <Composer value={flow.draft} onChange={flow.setDraft} onSend={() => flow.send(date)} />
     </div>
   );
 }

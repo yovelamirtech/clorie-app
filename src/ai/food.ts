@@ -43,6 +43,9 @@ export class AiError extends Error {
 
 export type ApiConfig = { apiKey: string; model: string };
 
+/** A provider HTTP request (always POST), as built by the provider module. */
+export type HttpRequest = { url: string; headers: Record<string, string>; body: string };
+
 export type Question = { id: string; question: string; options: string[] };
 
 export type ParsedItem = {
