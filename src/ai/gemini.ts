@@ -251,9 +251,14 @@ export function buildAnalyzeRequestChain(
   hint: MealHint,
   answers?: Clarification[],
 ): HttpRequest[] {
+  return requestChain(cfg, (c) => buildAnalyzeRequest(c, text, library, hint, answers));
+}
+
+/** `build` for the configured model and, when it's in MODEL_CHAIN, every model after it, in that order. */
+function requestChain(cfg: ApiConfig, build: (cfg: ApiConfig) => HttpRequest): HttpRequest[] {
   const models = [cfg.model];
   for (let next = nextModelInChain(cfg.model); next; next = nextModelInChain(next)) models.push(next);
-  return models.map((model) => buildAnalyzeRequest({ ...cfg, model }, text, library, hint, answers));
+  return models.map((model) => build({ ...cfg, model }));
 }
 
 export async function analyzeFood(
@@ -310,6 +315,16 @@ export async function classifyMeals(cfg: ApiConfig, items: LibraryItem[]): Promi
   return validateClassification(parsed, items);
 }
 
+/** classifyMeals as a fallback chain for the relay. */
+export function buildClassifyRequestChain(cfg: ApiConfig, items: LibraryItem[]): HttpRequest[] {
+  return requestChain(cfg, (c) => generateRequest(c, CLASSIFY_PROMPT, buildClassifyMessage(items), CLASSIFY_SCHEMA));
+}
+
+/** The relay's answer to buildClassifyRequestChain. Throws AiError. */
+export function parseClassifyResponse(status: number, bodyText: string, items: LibraryItem[]): Map<string, MealType[]> {
+  return validateClassification(parseGenerateResponse(status, bodyText), items);
+}
+
 const RECOMMEND_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -349,4 +364,14 @@ const RECOMMEND_SCHEMA = {
 export async function recommendMeals(cfg: ApiConfig, req: RecommendRequest): Promise<MealOption[]> {
   const parsed = await generateWithFallback(cfg, RECOMMEND_PROMPT, buildRecommendMessage(req), RECOMMEND_SCHEMA);
   return validateRecommendations(parsed, req.library);
+}
+
+/** recommendMeals as a fallback chain for the relay. */
+export function buildRecommendRequestChain(cfg: ApiConfig, req: RecommendRequest): HttpRequest[] {
+  return requestChain(cfg, (c) => generateRequest(c, RECOMMEND_PROMPT, buildRecommendMessage(req), RECOMMEND_SCHEMA));
+}
+
+/** The relay's answer to buildRecommendRequestChain. Throws AiError. */
+export function parseRecommendResponse(status: number, bodyText: string, library: LibraryItem[]): MealOption[] {
+  return validateRecommendations(parseGenerateResponse(status, bodyText), library);
 }

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Entry, LibraryItem, QueueItem, Settings } from './types';
+import type { AiJobs, Entry, LibraryItem, QueueItem, Settings } from './types';
 import {
   type AppData,
   type UiPrefs,
@@ -7,6 +7,7 @@ import {
   loadAll,
   saveAll,
   saveEntries,
+  saveJobs,
   saveLibrary,
   saveQueue,
   saveSettings,
@@ -27,6 +28,8 @@ type Actions = {
   updateUi: (patch: Partial<UiPrefs>) => void;
   /** Applied synchronously to the latest queue, so `fn` can also report what it found. */
   updateQueue: (fn: (q: QueueItem[]) => QueueItem[]) => void;
+  /** Applied synchronously to the latest jobs, like updateQueue. */
+  updateJobs: (fn: (j: AiJobs) => AiJobs) => void;
   replaceAll: (d: AppData) => Promise<void>;
   resetAll: () => Promise<void>;
 };
@@ -104,13 +107,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         commit({ ...cur(), queue });
         saveQueue(queue).catch(logErr);
       },
+      updateJobs(fn) {
+        const jobs = fn(cur().jobs);
+        commit({ ...cur(), jobs });
+        saveJobs(jobs).catch(logErr);
+      },
       async replaceAll(d) {
         await saveAll(d);
         commit(d);
       },
       async resetAll() {
         await wipeAll();
-        const fresh: AppData = { settings: defaultSettings(), entries: [], library: seedLibrary(), ui: {}, queue: [] };
+        const fresh: AppData = { settings: defaultSettings(), entries: [], library: seedLibrary(), ui: {}, queue: [], jobs: {} };
         await saveAll(fresh);
         commit(fresh);
       },

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AiError, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
-import { RelayError, deleteJob, getJob, putJob, relayConfig, type RelayReply } from './relay';
+import { RelayError, deleteJob, getJob, putJob, relayConfig } from './relay';
+import { describeRelayFailure } from './relayJobs';
 import { withAutoLibrary } from './autoLibrary';
 import { learnMealType, mealByTime, mealHintFor } from './meals';
 import { useStore } from './store';
@@ -16,18 +17,6 @@ const toError = (e: unknown) => {
   const err = e instanceof AiError ? e : new AiError('invalid', String(e));
   return { kind: err.kind, message: err.message, detail: err.detail };
 };
-
-/** The Hebrew message for a retryable failure the relay reported. */
-function describe(last: RelayReply | undefined): string | undefined {
-  if (!last) return undefined;
-  if (last.status === 0) return 'השרת לא הצליח להגיע לשירות ה-AI.';
-  try {
-    parseAnalyzeResponse(last.status, last.body, []);
-  } catch (e) {
-    if (e instanceof AiError) return e.message;
-  }
-  return undefined;
-}
 
 /**
  * The add flow: send → (clarify →) save, or an error card with "נסה שוב".
@@ -160,7 +149,7 @@ export function useAddFlow() {
               accepted: true,
               attempts: status.attempts,
               nextAttemptAt: status.nextAttemptAt,
-              lastError: describe(status.last),
+              lastError: describeRelayFailure(status.last),
             },
           });
         }

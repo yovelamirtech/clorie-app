@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { StoreProvider, useStore } from './store';
 import { useAddFlow } from './addFlow';
 import { useMealClassifier } from './mealClassifier';
+import { useSuggestFlow } from './suggestFlow';
 import { todayKey } from './dates';
 import { PROVIDER } from './ai';
 import type { Tab } from './types';
@@ -63,6 +64,7 @@ function Shell() {
   const date = pickedDate && pickedDate < today ? pickedDate : today;
   const flow = useAddFlow();
   useMealClassifier();
+  const suggest = useSuggestFlow();
   useKeyboardInset();
 
   if (!settings.onboardingDone) return <Onboarding />;
@@ -102,7 +104,7 @@ function Shell() {
       )}
       <InstallBanner />
       <main className="main">
-        {tab === 'today' && <TodayScreen date={date} onDateChange={setDate} flow={flow} />}
+        {tab === 'today' && <TodayScreen date={date} onDateChange={setDate} flow={flow} suggest={suggest} />}
         {tab === 'week' && <WeekScreen onOpenDay={(d) => { setDate(d); setTab('today'); }} />}
         {tab === 'library' && <LibraryScreen />}
         {tab === 'settings' && <SettingsScreen />}
