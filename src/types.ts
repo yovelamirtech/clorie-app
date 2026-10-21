@@ -78,7 +78,7 @@ export type QueueItem = {
 );
 
 /** A library classification request waiting on the relay. */
-export type ClassifyJob = { id: string; itemIds: string[] };
+export type ClassifyJob = { id: string; itemIds: string[]; sentAt?: string; relay?: RelayProgress };
 
 export type SuggestMode = 'library' | 'new';
 

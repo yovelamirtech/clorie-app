@@ -1,6 +1,7 @@
 // Shared steps for AI requests that wait on the retry relay (worker/), so they survive closing the app.
 import { AiError, parseAnalyzeResponse, type HttpRequest } from './ai';
 import { RelayError, getJob, putJob, type RelayConfig, type RelayReply, type RelayStatus } from './relay';
+import type { RelayProgress } from './types';
 
 /** The Hebrew message for a retryable failure the relay reported. */
 export function describeRelayFailure(last: RelayReply | undefined): string | undefined {
@@ -13,6 +14,14 @@ export function describeRelayFailure(last: RelayReply | undefined): string | und
     if (e instanceof AiError) return e.message;
   }
   return undefined;
+}
+
+/** Hebrew progress line for a request waiting on the relay. */
+export function relayWaitingText(r: RelayProgress | undefined): string {
+  if (r?.offline) return 'אין חיבור לשרת כרגע. ננסה שוב.';
+  if (!r?.accepted) return 'שולח לשרת…';
+  if (r.attempts > 0 && r.lastError) return `ממתין · ${r.lastError}`;
+  return 'ממתין לתשובה…';
 }
 
 /** Check on a job at the relay, or send it when the relay doesn't know it (never arrived, or expired). */

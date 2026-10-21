@@ -63,7 +63,7 @@ function Shell() {
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const date = pickedDate && pickedDate < today ? pickedDate : today;
   const flow = useAddFlow();
-  useMealClassifier();
+  const classifier = useMealClassifier();
   const suggest = useSuggestFlow();
   useKeyboardInset();
 
@@ -106,7 +106,7 @@ function Shell() {
       <main className="main">
         {tab === 'today' && <TodayScreen date={date} onDateChange={setDate} flow={flow} suggest={suggest} />}
         {tab === 'week' && <WeekScreen onOpenDay={(d) => { setDate(d); setTab('today'); }} />}
-        {tab === 'library' && <LibraryScreen />}
+        {tab === 'library' && <LibraryScreen classifier={classifier} />}
         {tab === 'settings' && <SettingsScreen />}
       </main>
     </div>

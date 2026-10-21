@@ -3,7 +3,8 @@ import { OVER_TARGET_BUDGET, type MealOption } from '../ai';
 import { MEAL_LABELS, MEAL_TYPES, mealBudget, mealByTime, type MealBudget } from '../meals';
 import { useStore } from '../store';
 import type { SuggestFlow } from '../suggestFlow';
-import type { Entry, MealType, SuggestJob } from '../types';
+import type { Entry, MealType } from '../types';
+import { relayWaitingText } from '../relayJobs';
 import { entryCalories, fmt1, fmtInt } from '../util';
 import { Dialog } from './Dialog';
 import { Book } from './Icons';
@@ -15,15 +16,6 @@ const SOURCE_LABELS: Record<MealOption['source'], string> = {
   mixed: 'חלקית מהמאגר',
   new: 'הצעה חדשה',
 };
-
-/** Progress of a request waiting on the relay. */
-function waitingText(job: SuggestJob): string {
-  const r = job.relay;
-  if (r?.offline) return 'אין חיבור לשרת כרגע. ננסה שוב.';
-  if (!r?.accepted) return 'שולח לשרת…';
-  if (r.attempts > 0 && r.lastError) return `ממתין · ${r.lastError}`;
-  return 'ממתין לתשובה…';
-}
 
 function SuggestDialog({ flow, target, dayEntries, onClose }: { flow: SuggestFlow; target: number; dayEntries: Entry[]; onClose: () => void }) {
   const { settings } = useStore();
@@ -113,7 +105,7 @@ function SuggestDialog({ flow, target, dayEntries, onClose }: { flow: SuggestFlo
           </div>
           {job && (
             <>
-              <div className="small">{waitingText(job)}</div>
+              <div className="small">{relayWaitingText(job.relay)}</div>
               <div className="small">אפשר לסגור את האפליקציה. ההצעות יחכו כאן.</div>
             </>
           )}
