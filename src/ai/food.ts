@@ -1,6 +1,7 @@
 // Provider-neutral part of the food analysis: errors, prompt, user message and result validation.
 // Provider-specific code (HTTP, auth, response format) lives in its own module, e.g. ./gemini.ts.
-import type { Clarification, LibraryItem } from '../types';
+import type { Clarification, LibraryItem, MealType } from '../types';
+import { MEAL_LABELS, isMealType, type MealHint } from '../meals';
 import { round1 } from '../util';
 
 export type AiErrorKind =
@@ -59,7 +60,7 @@ export type ParsedItem = {
 
 export type FoodResult =
   | { status: 'needs_clarification'; questions: Question[] }
-  | { status: 'ok'; title: string; items: ParsedItem[] };
+  | { status: 'ok'; title: string; items: ParsedItem[]; mealType?: MealType };
 
 export const SYSTEM_PROMPT = `You estimate calories and protein for food that the user describes in free-form Hebrew. The user lives in Israel, so products and brands are Israeli (עוף טוב, תנובה, אסם, שטראוס, etc.); use typical Israeli product values and portion sizes.
 
@@ -82,12 +83,18 @@ Clarification questions
 - Otherwise make the most reasonable assumption, record it in assumption, and return status "ok" with title and items (no questions).
 - If the message already contains the user's answers to clarification questions, never ask again: return status "ok".
 
+Meal type
+- mealType: the meal the food was eaten at: "breakfast", "lunch", "dinner", or "snack" (something small between meals).
+- If the text says which meal it was (e.g. "ארוחת בוקר: ...", "בצהריים אכלתי", "נשנוש"), use that. Such words describe the meal; they are not food items.
+- Otherwise, when the user message gives the meal by the time the message was sent, use it, unless the food is a snack between meals rather than a meal: a small amount (roughly under 250 calories) or something typically eaten as a snack (a fruit, a yogurt, a handful of nuts, a cookie, a bar). Then use "snack".
+- When no time is given (the entry is for another day), infer the meal from the food itself.
+
 Output
 - title: a short Hebrew title of up to 5 words describing the meal (e.g. "ארוחת צהריים: אורז וחומוס", "חביתה ולחם").
 - calories: whole numbers. protein: grams, one decimal place.
 - All user-facing text in Hebrew.`;
 
-export function buildUserMessage(text: string, library: LibraryItem[], answers?: Clarification[]): string {
+export function buildUserMessage(text: string, library: LibraryItem[], hint: MealHint, answers?: Clarification[]): string {
   const lib = library.map((i) => ({
     id: i.id,
     name: i.name,
@@ -97,7 +104,10 @@ export function buildUserMessage(text: string, library: LibraryItem[], answers?:
     proteinPerUnit: i.proteinPerUnit ?? null,
     note: i.note || undefined,
   }));
-  let msg = `<personal_library>\n${JSON.stringify(lib)}\n</personal_library>\n\n<food_description>\n${text}\n</food_description>`;
+  const meal = hint
+    ? `Sent at ${hint.time}, which by the time is ${hint.meal} (${MEAL_LABELS[hint.meal]}).`
+    : 'The entry is for another day, so the time it was sent says nothing about the meal.';
+  let msg = `<personal_library>\n${JSON.stringify(lib)}\n</personal_library>\n\n<meal_time>\n${meal}\n</meal_time>\n\n<food_description>\n${text}\n</food_description>`;
   if (answers?.length) {
     msg +=
       '\n\n<clarification_answers>\n' +
@@ -155,7 +165,7 @@ export function validateResult(input: unknown, library: LibraryItem[]): FoodResu
       };
     });
     const title = isStr(o.title) && o.title.trim() ? o.title.trim() : items.map((i) => i.name).slice(0, 3).join(', ');
-    return { status: 'ok', title, items };
+    return { status: 'ok', title, items, ...(isMealType(o.mealType) ? { mealType: o.mealType } : {}) };
   }
 
   invalid(`unknown status ${String(o.status)}`);

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AiError, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
 import { RelayError, deleteJob, getJob, putJob, relayConfig, type RelayReply } from './relay';
+import { learnMealType, mealByTime, mealHintFor } from './meals';
 import { useStore } from './store';
 import type { Clarification, Entry, QueueItem } from './types';
 import { uid } from './util';
@@ -72,6 +73,7 @@ export function useAddFlow() {
         return;
       }
       if (!replace(item, null)) return;
+      const mealType = res.mealType ?? mealByTime(new Date(createdAt));
       const entry: Entry = {
         id: uid(),
         date,
@@ -80,8 +82,11 @@ export function useAddFlow() {
         title: res.title,
         items: res.items.map((i) => ({ id: uid(), ...i })),
         ...(answers?.length ? { clarifications: answers } : {}),
+        mealType,
       };
       latest.current.actions.addEntry(entry);
+      const used = new Set(res.items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
+      if (used.size) latest.current.actions.updateLibrary((l) => learnMealType(l, used, mealType));
       setLastAddedId(entry.id);
     },
     [replace],
@@ -97,6 +102,7 @@ export function useAddFlow() {
       try {
         const { settings, library } = latest.current;
         const cfg = { apiKey: settings.apiKey, model: settings.model };
+        const hint = mealHintFor(item.date, item.createdAt);
         const relay = relayConfig(settings);
 
         if (!relay) {
@@ -107,7 +113,7 @@ export function useAddFlow() {
           let res: FoodResult;
           for (;;) {
             try {
-              res = await analyzeFood({ ...cfg, model }, item.text, library, item.answers);
+              res = await analyzeFood({ ...cfg, model }, item.text, library, hint, item.answers);
               break;
             } catch (e) {
               const next = e instanceof AiError && e.kind === 'rate_limit' ? nextModelInChain(model) : undefined;
@@ -126,7 +132,7 @@ export function useAddFlow() {
         try {
           status = item.relay?.accepted ? await getJob(relay, item.attempt) : null;
           // Unknown to the relay (never arrived, or expired): send it (again).
-          status ??= await putJob(relay, item.attempt, buildAnalyzeRequestChain(cfg, item.text, library, item.answers));
+          status ??= await putJob(relay, item.attempt, buildAnalyzeRequestChain(cfg, item.text, library, hint, item.answers));
         } catch (e) {
           if (e instanceof RelayError && e.kind === 'unreachable') {
             const relay = { attempts: 0, accepted: false, ...item.relay, offline: true };

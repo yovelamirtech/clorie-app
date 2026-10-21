@@ -1,6 +1,7 @@
 import type { AppData } from './db';
 import type { Entry, LibraryItem, Settings } from './types';
 import { todayKey } from './dates';
+import { isMealType, mealTypesFrom } from './meals';
 
 const APP_ID = 'calories-diary';
 const VERSION = 1;
@@ -87,8 +88,12 @@ export function parseBackup(text: string): Backup {
       ...(isStr(s.provider) ? { provider: s.provider } : {}),
       onboardingDone: true,
     },
-    library: raw.library,
-    entries: raw.entries,
+    // Meal fields are optional; drop values this version doesn't know rather than reject the file.
+    library: raw.library.map(({ mealTypes, mealTypesByUser, ...i }) => {
+      const meals = mealTypesFrom(mealTypes);
+      return { ...i, ...(meals ? { mealTypes: meals } : {}), ...(mealTypesByUser === true ? { mealTypesByUser } : {}) };
+    }),
+    entries: raw.entries.map(({ mealType, ...e }) => (isMealType(mealType) ? { ...e, mealType } : e)),
   };
 }
 

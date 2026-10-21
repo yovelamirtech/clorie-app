@@ -1,6 +1,8 @@
 // Google Gemini API provider. Everything Gemini-specific (endpoint, auth header, JSON schema format,
 // response parsing, error mapping) lives here, so another provider can replace this file.
-import type { Clarification, LibraryItem } from '../types';
+import type { Clarification, LibraryItem, MealType } from '../types';
+import { MEAL_TYPES, type MealHint } from '../meals';
+import { CLASSIFY_PROMPT, buildClassifyMessage, validateClassification } from './classify';
 import {
   AiError,
   type ApiConfig,
@@ -120,6 +122,7 @@ const RESPONSE_SCHEMA = {
       },
     },
     title: { type: 'STRING', description: 'Only when status is "ok". Hebrew, up to 5 words.' },
+    mealType: { type: 'STRING', enum: [...MEAL_TYPES], description: 'Only when status is "ok".' },
     items: {
       type: 'ARRAY',
       description: 'Only when status is "ok".',
@@ -139,7 +142,7 @@ const RESPONSE_SCHEMA = {
     },
   },
   required: ['status'],
-  propertyOrdering: ['status', 'questions', 'title', 'items'],
+  propertyOrdering: ['status', 'questions', 'title', 'mealType', 'items'],
 };
 
 type GenerateResponse = {
@@ -152,22 +155,17 @@ type GenerateResponse = {
 
 const BLOCKED_FINISH = new Set(['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION']);
 
-/** The generateContent request for a food description, ready to send directly or through the relay. */
-export function buildAnalyzeRequest(
-  cfg: ApiConfig,
-  text: string,
-  library: LibraryItem[],
-  answers?: Clarification[],
-): HttpRequest {
+/** A generateContent request: system prompt, one user message, JSON output in the given schema. */
+function generateRequest(cfg: ApiConfig, system: string, user: string, schema: object): HttpRequest {
   return {
     url: `${BASE_URL}/models/${encodeURIComponent(modelId(cfg.model))}:generateContent`,
     headers: { ...authHeaders(cfg.apiKey), 'content-type': 'application/json' },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: buildUserMessage(text, library, answers) }] }],
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: user }] }],
       generationConfig: {
         responseMimeType: 'application/json',
-        responseSchema: RESPONSE_SCHEMA,
+        responseSchema: schema,
         // Thinking tokens count toward this limit, so leave plenty of room.
         maxOutputTokens: 8192,
       },
@@ -175,13 +173,19 @@ export function buildAnalyzeRequest(
   };
 }
 
-/** Turn the HTTP answer to buildAnalyzeRequest into a result. Throws AiError. status 0 = no answer (network). */
-export function parseAnalyzeResponse(
-  status: number,
-  bodyText: string,
+/** The generateContent request for a food description, ready to send directly or through the relay. */
+export function buildAnalyzeRequest(
+  cfg: ApiConfig,
+  text: string,
   library: LibraryItem[],
+  hint: MealHint,
   answers?: Clarification[],
-): FoodResult {
+): HttpRequest {
+  return generateRequest(cfg, SYSTEM_PROMPT, buildUserMessage(text, library, hint, answers), RESPONSE_SCHEMA);
+}
+
+/** The JSON object a generateContent answer carries. Throws AiError. status 0 = no answer (network). */
+function parseGenerateResponse(status: number, bodyText: string): unknown {
   if (status === 0) throw new AiError('network', bodyText);
   if (status < 200 || status >= 300) throw httpError(status, bodyText);
   let data: GenerateResponse;
@@ -200,14 +204,21 @@ export function parseAnalyzeResponse(
   // parts[0] is the answer; skip thought parts in case a model returns them.
   const raw = candidate.content?.parts?.find((p) => !p.thought && typeof p.text === 'string')?.text;
   if (!raw) invalid('empty response');
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    return JSON.parse(raw);
   } catch {
     invalid('response is not valid JSON');
   }
+}
 
-  const result = validateResult(parsed, library);
+/** Turn the HTTP answer to buildAnalyzeRequest into a result. Throws AiError. status 0 = no answer (network). */
+export function parseAnalyzeResponse(
+  status: number,
+  bodyText: string,
+  library: LibraryItem[],
+  answers?: Clarification[],
+): FoodResult {
+  const result = validateResult(parseGenerateResponse(status, bodyText), library);
   if (answers?.length && result.status === 'needs_clarification') invalid('asked again after answers');
   return result;
 }
@@ -221,19 +232,64 @@ export function buildAnalyzeRequestChain(
   cfg: ApiConfig,
   text: string,
   library: LibraryItem[],
+  hint: MealHint,
   answers?: Clarification[],
 ): HttpRequest[] {
   const models = [cfg.model];
   for (let next = nextModelInChain(cfg.model); next; next = nextModelInChain(next)) models.push(next);
-  return models.map((model) => buildAnalyzeRequest({ ...cfg, model }, text, library, answers));
+  return models.map((model) => buildAnalyzeRequest({ ...cfg, model }, text, library, hint, answers));
 }
 
 export async function analyzeFood(
   cfg: ApiConfig,
   text: string,
   library: LibraryItem[],
+  hint: MealHint,
   answers?: Clarification[],
 ): Promise<FoodResult> {
-  const res = await send({ method: 'POST', ...buildAnalyzeRequest(cfg, text, library, answers) });
+  const res = await send({ method: 'POST', ...buildAnalyzeRequest(cfg, text, library, hint, answers) });
   return parseAnalyzeResponse(res.status, res.body, library, answers);
+}
+
+/**
+ * Send a generateContent request directly from the browser. On a rate limit, step down MODEL_CHAIN
+ * and retry right away, for this call only (like the add flow does for food analysis).
+ */
+async function generateWithFallback(cfg: ApiConfig, system: string, user: string, schema: object): Promise<unknown> {
+  let model = cfg.model;
+  for (;;) {
+    try {
+      const res = await send({ method: 'POST', ...generateRequest({ ...cfg, model }, system, user, schema) });
+      return parseGenerateResponse(res.status, res.body);
+    } catch (e) {
+      const next = e instanceof AiError && e.kind === 'rate_limit' ? nextModelInChain(model) : undefined;
+      if (!next) throw e;
+      model = next;
+    }
+  }
+}
+
+const CLASSIFY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    items: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          id: { type: 'STRING' },
+          mealTypes: { type: 'ARRAY', items: { type: 'STRING', enum: [...MEAL_TYPES] } },
+        },
+        required: ['id', 'mealTypes'],
+        propertyOrdering: ['id', 'mealTypes'],
+      },
+    },
+  },
+  required: ['items'],
+};
+
+/** Ask which meals each library item fits. Returns item id → meal types (items it skipped are missing). */
+export async function classifyMeals(cfg: ApiConfig, items: LibraryItem[]): Promise<Map<string, MealType[]>> {
+  const parsed = await generateWithFallback(cfg, CLASSIFY_PROMPT, buildClassifyMessage(items), CLASSIFY_SCHEMA);
+  return validateClassification(parsed, items);
 }

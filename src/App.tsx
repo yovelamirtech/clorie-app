@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StoreProvider, useStore } from './store';
 import { useAddFlow } from './addFlow';
+import { useMealClassifier } from './mealClassifier';
 import { todayKey } from './dates';
 import { PROVIDER } from './ai';
 import type { Tab } from './types';
@@ -61,6 +62,7 @@ function Shell() {
   const [pickedDate, setPickedDate] = useState<string | null>(null);
   const date = pickedDate && pickedDate < today ? pickedDate : today;
   const flow = useAddFlow();
+  useMealClassifier();
   useKeyboardInset();
 
   if (!settings.onboardingDone) return <Onboarding />;
