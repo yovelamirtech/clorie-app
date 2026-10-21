@@ -122,6 +122,11 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
   };
 
   const total = entryCalories(entry);
+  // Items deleted from the library since then aren't listed.
+  const addedNames = entry.items.flatMap((i) => {
+    const lib = i.addedToLibrary ? library.find((l) => l.id === i.libraryItemId) : undefined;
+    return lib ? [lib.name] : [];
+  });
 
   return (
     <div ref={ref} className={`entry ${expanded ? 'is-open' : ''} ${highlight ? 'is-new' : ''}`}>
@@ -152,6 +157,9 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
             ))}
           </ul>
           {entry.items.length === 0 && <div className="muted small">אין פריטים ברישום הזה.</div>}
+          {addedNames.length > 0 && (
+            <div className="entry-added"><Book size={12} /> נוסף למאגר: {addedNames.join(', ')}</div>
+          )}
           <div className="row-end">
             <button className="btn btn-ghost-danger" onClick={() => setConfirmDelete(true)}>
               <Trash /> מחיקת הרישום

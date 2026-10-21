@@ -360,6 +360,8 @@ a { color: var(--accent-strong); }
   vertical-align: 2px;
 }
 .badge-edit { background: var(--surface-2); color: var(--muted); }
+.badge-unverified { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.entry-added { display: flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.8rem; color: var(--muted); }
 
 .empty {
   text-align: center;

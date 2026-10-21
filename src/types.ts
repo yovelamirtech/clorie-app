@@ -22,6 +22,7 @@ export type LibraryItem = {
   note?: string;
   mealTypes?: MealType[]; // meals this food fits; undefined = not classified yet
   mealTypesByUser?: boolean; // set by hand: the AI no longer changes mealTypes
+  unverified?: boolean; // added automatically from an AI estimate; cleared when the user saves it in the form
   updatedAt: string; // ISO
 };
 
@@ -34,6 +35,7 @@ export type EntryItem = {
   assumption?: string;
   libraryItemId?: string;
   editedByUser?: boolean;
+  addedToLibrary?: boolean; // this entry added libraryItemId to the library automatically
 };
 
 export type Clarification = { question: string; answer: string };
