@@ -4,6 +4,13 @@ import type { Clarification, LibraryItem, MealType } from '../types';
 import { MEAL_TYPES, type MealHint } from '../meals';
 import { CLASSIFY_PROMPT, buildClassifyMessage, validateClassification } from './classify';
 import {
+  type MealOption,
+  RECOMMEND_PROMPT,
+  type RecommendRequest,
+  buildRecommendMessage,
+  validateRecommendations,
+} from './recommend';
+import {
   AiError,
   type ApiConfig,
   type FoodResult,
@@ -292,4 +299,45 @@ const CLASSIFY_SCHEMA = {
 export async function classifyMeals(cfg: ApiConfig, items: LibraryItem[]): Promise<Map<string, MealType[]>> {
   const parsed = await generateWithFallback(cfg, CLASSIFY_PROMPT, buildClassifyMessage(items), CLASSIFY_SCHEMA);
   return validateClassification(parsed, items);
+}
+
+const RECOMMEND_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    options: {
+      type: 'ARRAY',
+      description: '3-5 options.',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          title: { type: 'STRING' },
+          items: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                name: { type: 'STRING' },
+                quantity: { type: 'STRING' },
+                calories: { type: 'INTEGER' },
+                protein: { type: 'NUMBER' },
+                libraryItemId: { type: 'STRING', nullable: true },
+              },
+              required: ['name', 'quantity', 'calories', 'protein'],
+              propertyOrdering: ['name', 'quantity', 'calories', 'protein', 'libraryItemId'],
+            },
+          },
+          note: { type: 'STRING' },
+        },
+        required: ['title', 'items'],
+        propertyOrdering: ['title', 'items', 'note'],
+      },
+    },
+  },
+  required: ['options'],
+};
+
+/** Meal suggestions within a calorie budget, sent directly (the user is waiting for them). */
+export async function recommendMeals(cfg: ApiConfig, req: RecommendRequest): Promise<MealOption[]> {
+  const parsed = await generateWithFallback(cfg, RECOMMEND_PROMPT, buildRecommendMessage(req), RECOMMEND_SCHEMA);
+  return validateRecommendations(parsed, req.library);
 }

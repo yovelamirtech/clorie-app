@@ -7,6 +7,7 @@ import { Composer } from './Composer';
 import { DateHeader } from './DateHeader';
 import { DaySummary } from './DaySummary';
 import { EntryCard } from './EntryCard';
+import { MealSuggest } from './MealSuggest';
 import { PendingCard } from './PendingCard';
 
 type Props = {
@@ -45,6 +46,7 @@ export function TodayScreen({ date, onDateChange, flow }: Props) {
     <div className="screen today">
       <DateHeader date={date} onChange={onDateChange} />
       <DaySummary calories={sumCalories(allItems)} protein={sumProtein(allItems)} target={settings.dailyTarget} />
+      {date === todayKey() && settings.dailyTarget !== null && <MealSuggest target={settings.dailyTarget} dayEntries={dayEntries} />}
 
       <div className="entries">
         {dayEntries.map((e) => (

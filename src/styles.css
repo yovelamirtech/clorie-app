@@ -66,6 +66,7 @@ a { color: var(--accent-strong); }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
+.nowrap { white-space: nowrap; }
 .ltr { direction: ltr; text-align: left; }
 .ltr-inline { unicode-bidi: plaintext; }
 .spacer { flex: 1; }
@@ -256,6 +257,23 @@ a { color: var(--accent-strong); }
 .bar-over .bar-fill { background: var(--over); }
 
 .summary-protein { margin-top: 10px; color: var(--muted); font-size: 0.9rem; }
+
+/* meal suggestions */
+
+.suggest-open { text-align: center; margin: -12px 0 14px; font-size: 0.85rem; }
+.suggest-budget { margin: 10px 0 0; }
+.suggest-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.suggest-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.suggest-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.suggest-title { font-weight: 600; }
+.suggest-cal { font-weight: 600; flex: none; }
+.suggest-meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.suggest-meta .badge { margin-inline-start: 0; }
+.suggest-items { list-style: none; margin: 6px 0 0; padding: 0; font-size: 0.85rem; }
+.suggest-items li { display: flex; justify-content: space-between; gap: 8px; }
+.suggest-note { margin-top: 6px; font-size: 0.8rem; color: var(--muted); }
+.suggest-loading { margin-top: 12px; color: var(--muted); font-size: 0.9rem; }
+.suggest-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--over-soft); }
 
 .entries { display: flex; flex-direction: column; gap: 8px; }
 

@@ -50,3 +50,24 @@ export function mealHintFor(date: string, createdAt: string): MealHint {
   if (toDateKey(sent) !== date) return null;
   return { time: `${pad(sent.getHours())}:${pad(sent.getMinutes())}`, meal: mealByTime(sent) };
 }
+
+const MAIN_MEALS: readonly MainMeal[] = ['breakfast', 'lunch', 'dinner'];
+const MEAL_WEIGHTS: Record<MainMeal, number> = { breakfast: 30, lunch: 40, dinner: 30 };
+const SNACK_SHARE = 0.15;
+const SNACK_MAX = 250;
+
+export type MealBudget = { calories: number; reserved: MainMeal[] };
+
+/**
+ * Calories for one meal out of what's left today. A main meal shares what's left with the main meals
+ * after it that weren't eaten yet (30/40/30), so they keep their part; meals already past aren't kept.
+ * A snack gets 15% of what's left, up to 250. Rounded to 10.
+ */
+export function mealBudget(meal: MealType, remaining: number, eaten: ReadonlySet<MealType>): MealBudget {
+  if (remaining <= 0) return { calories: 0, reserved: [] };
+  const round10 = (n: number) => Math.round(n / 10) * 10;
+  if (meal === 'snack') return { calories: round10(Math.min(remaining * SNACK_SHARE, SNACK_MAX)), reserved: [] };
+  const reserved = MAIN_MEALS.slice(MAIN_MEALS.indexOf(meal) + 1).filter((m) => !eaten.has(m));
+  const total = reserved.reduce((s, m) => s + MEAL_WEIGHTS[m], MEAL_WEIGHTS[meal]);
+  return { calories: round10((remaining * MEAL_WEIGHTS[meal]) / total), reserved };
+}
