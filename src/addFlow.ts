@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AiError, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
 import { RelayError, deleteJob, getJob, putJob, relayConfig, type RelayReply } from './relay';
+import { withAutoLibrary } from './autoLibrary';
 import { learnMealType, mealByTime, mealHintFor } from './meals';
 import { useStore } from './store';
 import type { Clarification, Entry, QueueItem } from './types';
@@ -74,19 +75,20 @@ export function useAddFlow() {
       }
       if (!replace(item, null)) return;
       const mealType = res.mealType ?? mealByTime(new Date(createdAt));
+      const { items, added } = withAutoLibrary(res.items, latest.current.library, mealType);
       const entry: Entry = {
         id: uid(),
         date,
         createdAt: new Date().toISOString(),
         originalText: text,
         title: res.title,
-        items: res.items.map((i) => ({ id: uid(), ...i })),
+        items,
         ...(answers?.length ? { clarifications: answers } : {}),
         mealType,
       };
       latest.current.actions.addEntry(entry);
-      const used = new Set(res.items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
-      if (used.size) latest.current.actions.updateLibrary((l) => learnMealType(l, used, mealType));
+      const used = new Set(items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
+      if (used.size) latest.current.actions.updateLibrary((l) => learnMealType([...l, ...added], used, mealType));
       setLastAddedId(entry.id);
     },
     [replace],

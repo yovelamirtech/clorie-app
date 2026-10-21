@@ -33,7 +33,10 @@ export function LibraryScreen() {
           <li key={i.id}>
             <button className="lib-item" onClick={() => setEditing(i)}>
               <span className="lib-main">
-                <span className="lib-name">{i.name}</span>
+                <span className="lib-name">
+                  {i.name}
+                  {i.unverified && <span className="badge badge-unverified">לא נבדק</span>}
+                </span>
                 <span className="lib-unit">{i.unit}{i.note ? ` · ${i.note}` : ''}</span>
                 {i.aliases.length > 0 && <span className="lib-aliases">{i.aliases.join(', ')}</span>}
                 {i.mealTypes && i.mealTypes.length > 0 && (
@@ -54,6 +57,9 @@ export function LibraryScreen() {
 
       {editing && (
         <Dialog title={editing === 'new' ? 'פריט חדש' : 'עריכת פריט'} onClose={() => setEditing(null)}>
+          {editing !== 'new' && editing.unverified && (
+            <p className="hint">הפריט נוסף אוטומטית לפי הערכה של ה-AI ועוד לא נבדק. שמירה (גם בלי שינוי) תסמן אותו כבדוק.</p>
+          )}
           <LibraryItemForm
             initial={editing === 'new' ? {} : editing}
             submitLabel="שמירה"

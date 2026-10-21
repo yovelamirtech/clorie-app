@@ -49,6 +49,15 @@ export type HttpRequest = { url: string; headers: Record<string, string>; body: 
 
 export type Question = { id: string; question: string; options: string[] };
 
+/** A food the AI suggests remembering in the library (only for items that matched no library item). */
+export type NewLibraryItem = {
+  name: string;
+  unit: string;
+  caloriesPerUnit: number;
+  proteinPerUnit: number;
+  statedByUser: boolean; // the user wrote the calories themselves, so the value counts as checked
+};
+
 export type ParsedItem = {
   name: string;
   quantity: string;
@@ -56,6 +65,7 @@ export type ParsedItem = {
   protein: number;
   assumption?: string;
   libraryItemId?: string;
+  newLibraryItem?: NewLibraryItem;
 };
 
 export type FoodResult =
@@ -82,6 +92,15 @@ Clarification questions
 - In that case return status "needs_clarification" with 1 to 4 short Hebrew questions, each with 2 to 4 short answer options. One question per issue; one question may cover several foods when the same answer applies to all of them. Leave title and items out.
 - Otherwise make the most reasonable assumption, record it in assumption, and return status "ok" with title and items (no questions).
 - If the message already contains the user's answers to clarification questions, never ask again: return status "ok".
+
+Saving to the library
+- For an item that matched no library item, set saveToLibrary to true when it is a simple, single food or a packaged product the user is likely to eat again, with a clear unit: e.g. a hot dog, a yogurt, a slice of bread, an apple, a protein bar. Set it to false for mixed or home-cooked dishes, restaurant meals, one-off foods, and cooking oil or butter that has an item of its own anyway.
+- When saveToLibrary is true, also give:
+  - libraryName: a short, generic Hebrew name in the singular (e.g. "נקניקיה", "יוגורט דנונה 3%").
+  - libraryUnit: a singular unit (e.g. "יחידה", "פרוסה", "100 גרם", "גביע (200 גרם)").
+  - caloriesPerUnit and proteinPerUnit: the values for one libraryUnit, consistent with the item's calories and protein.
+  - caloriesStated: true if the user wrote this item's calories explicitly, otherwise false.
+- For items that matched a library item, set saveToLibrary to false.
 
 Meal type
 - mealType: the meal the food was eaten at: "breakfast", "lunch", "dinner", or "snack" (something small between meals).
@@ -127,6 +146,17 @@ export function invalid(why: string): never {
   throw new AiError('invalid', why);
 }
 
+/** The library item an analyzed item suggests saving, or undefined when it shouldn't (or can't) be saved. */
+function parseNewLibraryItem(r: Record<string, unknown>): NewLibraryItem | undefined {
+  if (r.saveToLibrary !== true || !isStr(r.libraryName) || !isStr(r.libraryUnit)) return undefined;
+  const name = r.libraryName.trim();
+  const unit = r.libraryUnit.trim();
+  const cal = toNum(r.caloriesPerUnit);
+  const prot = r.proteinPerUnit === undefined || r.proteinPerUnit === null ? 0 : toNum(r.proteinPerUnit);
+  if (!name || !unit || cal === null || cal < 0 || prot === null || prot < 0) return undefined;
+  return { name, unit, caloriesPerUnit: Math.round(cal), proteinPerUnit: round1(prot), statedByUser: r.caloriesStated === true };
+}
+
 /** Client-side schema check. Throws AiError('invalid') on anything unexpected. */
 export function validateResult(input: unknown, library: LibraryItem[]): FoodResult {
   if (!input || typeof input !== 'object') invalid('input is not an object');
@@ -155,6 +185,7 @@ export function validateResult(input: unknown, library: LibraryItem[]): FoodResu
       if (protein === null || protein < 0) invalid(`bad protein for ${r.name}`);
       const libId = isStr(r.libraryItemId) && libIds.has(r.libraryItemId) ? r.libraryItemId : undefined;
       const assumption = isStr(r.assumption) && r.assumption.trim() ? r.assumption.trim() : undefined;
+      const newLibraryItem = libId ? undefined : parseNewLibraryItem(r);
       return {
         name: r.name.trim(),
         quantity: isStr(r.quantity) ? r.quantity.trim() : '',
@@ -162,6 +193,7 @@ export function validateResult(input: unknown, library: LibraryItem[]): FoodResu
         protein: round1(protein),
         assumption,
         libraryItemId: libId,
+        ...(newLibraryItem ? { newLibraryItem } : {}),
       };
     });
     const title = isStr(o.title) && o.title.trim() ? o.title.trim() : items.map((i) => i.name).slice(0, 3).join(', ');

@@ -89,9 +89,14 @@ export function parseBackup(text: string): Backup {
       onboardingDone: true,
     },
     // Meal fields are optional; drop values this version doesn't know rather than reject the file.
-    library: raw.library.map(({ mealTypes, mealTypesByUser, ...i }) => {
+    library: raw.library.map(({ mealTypes, mealTypesByUser, unverified, ...i }) => {
       const meals = mealTypesFrom(mealTypes);
-      return { ...i, ...(meals ? { mealTypes: meals } : {}), ...(mealTypesByUser === true ? { mealTypesByUser } : {}) };
+      return {
+        ...i,
+        ...(meals ? { mealTypes: meals } : {}),
+        ...(mealTypesByUser === true ? { mealTypesByUser } : {}),
+        ...(unverified === true ? { unverified } : {}),
+      };
     }),
     entries: raw.entries.map(({ mealType, ...e }) => (isMealType(mealType) ? { ...e, mealType } : e)),
   };

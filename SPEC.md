@@ -128,8 +128,9 @@
 - הערה חופשית (למשל "בתנור, בלי שמן")
 - סוג ארוחה: בוקר, צהריים, ערב, נשנוש (אפשר כמה). מוצג כתגיות ברשימה, ונבחר בכפתורים בטופס.
 
-**שתי דרכים למלא אותו:**
+**שלוש דרכים למלא אותו:**
 - **ידנית** במסך המאגר.
+- **אוטומטית מרישום:** כשה-AI מנתח רישום ומגיע למאכל שלא נמצא במאגר, הוא מחליט אם לשמור אותו (מאכל פשוט או מוצר ארוז עם יחידה ברורה, שסביר שאוכל שוב; לא מנות מורכבות, ארוחות במסעדה או דברים חד-פעמיים) ומחזיר באותה תשובה שם, יחידה וערכים ליחידה. הפריט נוסף עם סוג הארוחה של הרישום, ומסומן "לא נבדק". הוא משמש לחישובים כמו כל פריט, והתגית נעלמת כששומרים אותו בטופס (גם בלי שינוי). אם כתבתי את הקלוריות בעצמי, הוא נשמר כבדוק. פריט ששמו זהה לשם או לכינוי של פריט קיים לא נוסף שוב, אלא מקושר אליו. בכרטיס הרישום מופיע "נוסף למאגר: ...".
 - **אוטומטית מתיקון:** כשאני משנה ידנית את הקלוריות של פריט ברישום, מופיעה הצעה: "לשמור במאגר?" עם שדות ממולאים מראש (שם, יחידה, קלוריות ליחידה מחושבות לפי הכמות). אפשר לערוך לפני שמירה או לדלג.
 
 **סוגי ארוחה:**
@@ -209,6 +210,7 @@ type LibraryItem = {
   note?: string;
   mealTypes?: MealType[];       // undefined = עוד לא סווג
   mealTypesByUser?: boolean;    // נקבע ידנית: ה-AI לא משנה
+  unverified?: boolean;         // נוסף אוטומטית ועוד לא נבדק
   updatedAt: string;            // ISO
 };
 
@@ -223,6 +225,7 @@ type EntryItem = {
   assumption?: string;          // מה ה-AI הניח
   libraryItemId?: string;       // אם נלקח מהמאגר
   editedByUser?: boolean;
+  addedToLibrary?: boolean;     // הרישום הזה הוסיף את הפריט למאגר
 };
 
 type Entry = {
@@ -252,7 +255,7 @@ type Entry = {
 - `questions` (אופציונלי, רק ב-`needs_clarification`): מערך של `{ id, question, options[] }`.
 - `title` (אופציונלי, רק ב-`ok`): מחרוזת.
 - `mealType` (אופציונלי, רק ב-`ok`): enum של `"breakfast"`, `"lunch"`, `"dinner"`, `"snack"`. אם חסר, לפי השעה.
-- `items` (אופציונלי, רק ב-`ok`): מערך של `{ name, quantity, calories (integer), protein (number), assumption?, libraryItemId? (nullable) }`.
+- `items` (אופציונלי, רק ב-`ok`): מערך של `{ name, quantity, calories (integer), protein (number), assumption?, libraryItemId? (nullable), saveToLibrary?, libraryName?, libraryUnit?, caloriesPerUnit?, proteinPerUnit?, caloriesStated? }`. שדות השמירה למאגר רלוונטיים רק לפריט שלא נמצא במאגר.
 
 הסכמה נכתבת בפורמט ה-Schema של Gemini (תת-קבוצה של OpenAPI: `type: "OBJECT"`, `"STRING"` וכו', `nullable`, `propertyOrdering`). בצד הלקוח בודקים איזה מצב חזר ושהשדות הנדרשים לו קיימים. דוגמאות לשני המצבים:
 
