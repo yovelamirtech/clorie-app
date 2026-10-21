@@ -98,7 +98,7 @@ export function SettingsScreen() {
   };
 
   return (
-    <div className="screen settings">
+    <div className="pb-[calc(env(safe-area-inset-bottom)+32px)]">
       <section className="card">
         <h2 className="section-title">יעד קלוריות יומי</h2>
         <div className="field-row">
@@ -112,7 +112,7 @@ export function SettingsScreen() {
             onBlur={commitTarget}
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
           />
-          <span className="muted">קלוריות</span>
+          <span className="text-muted">קלוריות</span>
         </div>
         <p className="hint">אפשר להשאיר ריק. בלי יעד מוצג רק הסכום היומי.</p>
       </section>
@@ -152,7 +152,7 @@ export function SettingsScreen() {
         {test.s === 'error' && (
           <div className="error-box">
             <div>{test.msg}</div>
-            {test.detail && <div className="error-detail ltr">{test.detail}</div>}
+            {test.detail && <div className="text-[0.75rem] text-muted mt-1 break-words ltr">{test.detail}</div>}
           </div>
         )}
         <p className="hint">
@@ -238,7 +238,7 @@ export function SettingsScreen() {
         {relayTest.s === 'error' && (
           <div className="error-box">
             <div>{relayTest.msg}</div>
-            {relayTest.detail && <div className="error-detail ltr">{relayTest.detail}</div>}
+            {relayTest.detail && <div className="text-[0.75rem] text-muted mt-1 break-words ltr">{relayTest.detail}</div>}
           </div>
         )}
         <p className="hint">

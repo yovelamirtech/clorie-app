@@ -1,24 +1,11 @@
 import { fmt1, fmtInt } from '../util';
 
-export function DaySummary({ calories, protein, target }: { calories: number; protein: number; target: number | null }) {
-  const over = target !== null && calories > target;
-  const pct = target ? Math.min(100, (calories / target) * 100) : 0;
+export function DaySummary({ calories, protein }: { calories: number; protein: number }) {
   return (
-    <section className="summary">
-      <div className="summary-total num">{fmtInt(calories)}</div>
-      <div className="summary-unit">קלוריות</div>
-      {target !== null && (
-        <>
-          <div className={`summary-left ${over ? 'is-over' : ''}`}>
-            {over ? `חריגה של ${fmtInt(calories - target)}` : `נשאר ${fmtInt(target - calories)}`}
-            <span className="muted"> מתוך {fmtInt(target)}</span>
-          </div>
-          <div className={`bar ${over ? 'bar-over' : ''}`} role="progressbar" aria-valuemin={0} aria-valuemax={target} aria-valuenow={calories}>
-            <div className="bar-fill" style={{ width: `${pct}%` }} />
-          </div>
-        </>
-      )}
-      <div className="summary-protein">חלבון: <span className="num">{fmt1(protein)}</span> גרם</div>
+    <section className="text-center py-2 pb-5">
+      <div className="num text-[clamp(3.4rem,17vw,4.6rem)] font-bold leading-none tracking-[-0.02em]">{fmtInt(calories)}</div>
+      <div className="text-muted mt-0.5">קלוריות</div>
+      <div className="mt-2.5 text-muted text-[0.9rem]">חלבון: <span className="num">{fmt1(protein)}</span> גרם</div>
     </section>
   );
 }

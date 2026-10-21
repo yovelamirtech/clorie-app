@@ -36,11 +36,14 @@ export function Composer({ value, onChange, onSend }: Props) {
   const canSend = value.trim().length > 0;
 
   return (
-    <div className="composer" ref={wrap}>
-      <div className="composer-inner">
+    <div
+      className="fixed inset-x-0 bottom-[var(--kb,0px)] z-20 pt-2 pr-[max(12px,env(safe-area-inset-right))] pb-[max(10px,env(safe-area-inset-bottom))] pl-[max(12px,env(safe-area-inset-left))] bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] backdrop-blur-md border-t border-border [.kb-open_&]:pb-2"
+      ref={wrap}
+    >
+      <div className="flex items-end gap-2 max-w-[576px] mx-auto">
         <textarea
           ref={ta}
-          className="composer-input"
+          className="flex-1 resize-none min-h-11 max-h-[35vh] px-3.5 py-2.5 border border-border rounded-[22px] bg-surface outline-none leading-[1.4] focus:border-accent"
           rows={1}
           placeholder="מה אכלת?"
           value={value}
@@ -52,7 +55,12 @@ export function Composer({ value, onChange, onSend }: Props) {
             }
           }}
         />
-        <button className="send-btn" aria-label="שליחה" disabled={!canSend} onClick={onSend}>
+        <button
+          className="grid place-items-center w-11 h-11 shrink-0 border-0 rounded-full bg-accent text-on-accent cursor-pointer disabled:bg-surface-2 disabled:text-faint disabled:cursor-default"
+          aria-label="שליחה"
+          disabled={!canSend}
+          onClick={onSend}
+        >
           <Send />
         </button>
       </div>

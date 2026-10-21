@@ -45,12 +45,12 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
   }, [flashId]);
 
   return (
-    <div className="screen today">
+    <div className="pb-[calc(var(--composer-h,80px)+24px)]">
       <DateHeader date={date} onChange={onDateChange} />
-      <DaySummary calories={sumCalories(allItems)} protein={sumProtein(allItems)} target={settings.dailyTarget} />
+      <DaySummary calories={sumCalories(allItems)} protein={sumProtein(allItems)} />
       {date === todayKey() && settings.dailyTarget !== null && <MealSuggest flow={suggest} target={settings.dailyTarget} dayEntries={dayEntries} />}
 
-      <div className="entries">
+      <div className="flex flex-col gap-2">
         {dayEntries.map((e) => (
           <EntryCard
             key={e.id}
@@ -72,10 +72,10 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
         ))}
 
         {dayEntries.length === 0 && flow.queue.length === 0 && (
-          <div className="empty">
+          <div className="text-center text-muted py-6 px-2 [&_p]:my-1">
             <p>עוד לא נרשם כלום {date === todayKey() ? 'היום' : 'ביום הזה'}.</p>
             <p>כתוב בחופשיות מה אכלת, למשל:</p>
-            <p className="empty-example">2 פרוסות לחם לבן עם כף גדושה חמאת בוטנים, וחצי גביע קוטג׳ 5%</p>
+            <p className="text-text italic !mt-2">2 פרוסות לחם לבן עם כף גדושה חמאת בוטנים, וחצי גביע קוטג׳ 5%</p>
           </div>
         )}
       </div>

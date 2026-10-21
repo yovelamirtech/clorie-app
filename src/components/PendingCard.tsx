@@ -19,12 +19,12 @@ function ClarifyForm({ questions, onSubmit, onCancel }: {
   const complete = questions.every((q) => !!answerFor(q));
 
   return (
-    <div className="clarify">
-      <div className="clarify-head">כמה שאלות קצרות לפני החישוב</div>
+    <div>
+      <div className="font-semibold mb-2">כמה שאלות קצרות לפני החישוב</div>
       {questions.map((q) => (
-        <div key={q.id} className="clarify-q">
-          <div className="clarify-question">{q.question}</div>
-          <div className="chips">
+        <div key={q.id} className="mt-3">
+          <div className="mb-2">{q.question}</div>
+          <div className="flex flex-wrap gap-1.5">
             {q.options.map((opt) => (
               <button
                 key={opt}
@@ -43,7 +43,7 @@ function ClarifyForm({ questions, onSubmit, onCancel }: {
           </div>
           {choice[q.id] === OTHER && (
             <input
-              className="input"
+              className="input mt-2"
               autoFocus
               placeholder="התשובה שלי…"
               value={other[q.id] ?? ''}
@@ -99,17 +99,17 @@ function LoadingBody({ item, onCancel }: { item: Loading; onCancel: () => void }
   }
   return (
     <>
-      <div className="loading">
+      <div className="flex items-center gap-2.5 flex-wrap">
         <span className="spinner" aria-hidden="true" />
         <span>{status}</span>
-        <span className="pending-text">{item.text}</span>
+        <span className="basis-full text-muted text-[0.85rem] whitespace-pre-wrap">{item.text}</span>
       </div>
       {r?.lastError && !r.offline && (
-        <div className="pending-status">
+        <div className="text-[0.85rem] text-muted mt-2">
           {r.lastError} ({r.attempts === 1 ? 'ניסיון אחד' : `${r.attempts} ניסיונות`})
         </div>
       )}
-      {hint && <div className="pending-status">{hint}</div>}
+      {hint && <div className="text-[0.85rem] text-muted mt-2">{hint}</div>}
       {r && (
         <div className="row-end">
           <button className="btn" onClick={onCancel}>ביטול</button>
@@ -129,19 +129,22 @@ type Props = {
 
 /** Loading / clarification / error card shown inside the entry list, one per queued message. */
 export function PendingCard({ item: p, viewDate, onAnswer, onRetry, onCancel }: Props) {
-  const otherDay = p.date !== viewDate ? <div className="pending-day">רישום ל{dayLabel(p.date)}</div> : null;
+  const otherDay = p.date !== viewDate ? <div className="text-[0.8rem] text-muted mb-1.5">רישום ל{dayLabel(p.date)}</div> : null;
 
   return (
-    <div className={`pending-card pending-${p.phase}`} aria-live="polite">
+    <div
+      className={`bg-surface border border-dashed border-accent rounded-app p-3.5 ${p.phase === 'error' ? 'border-solid border-over bg-over-soft' : ''}`}
+      aria-live="polite"
+    >
       {otherDay}
       {p.phase === 'loading' && <LoadingBody item={p} onCancel={onCancel} />}
-      {p.phase === 'clarify' && <div className="pending-text clarify-text">{p.text}</div>}
+      {p.phase === 'clarify' && <div className="text-muted text-[0.85rem] whitespace-pre-wrap mb-2">{p.text}</div>}
       {p.phase === 'clarify' && <ClarifyForm questions={p.questions} onSubmit={onAnswer} onCancel={onCancel} />}
       {p.phase === 'error' && (
-        <div className="error">
-          <div className="pending-text clarify-text">{p.text}</div>
-          <div className="error-msg">{p.error.message}</div>
-          {p.error.detail && p.error.kind !== 'network' && <div className="error-detail ltr">{p.error.detail}</div>}
+        <div>
+          <div className="text-muted text-[0.85rem] whitespace-pre-wrap mb-2">{p.text}</div>
+          <div className="font-medium">{p.error.message}</div>
+          {p.error.detail && p.error.kind !== 'network' && <div className="text-[0.75rem] text-muted mt-1 break-words ltr">{p.error.detail}</div>}
           <div className="row-end">
             <button className="btn" onClick={onCancel}>סגירה</button>
             <button className="btn btn-primary" onClick={onRetry}>נסה שוב</button>
