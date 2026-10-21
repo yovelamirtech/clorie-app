@@ -23,7 +23,6 @@ export function WeekScreen({ onOpenDay }: { onOpenDay: (date: string) => void })
   const logged = days.filter((d) => d.logged);
   const avg = logged.length ? logged.reduce((s, d) => s + d.calories, 0) / logged.length : null;
   const cumulative = target !== null ? logged.reduce((s, d) => s + (d.calories - target), 0) : null;
-  const max = Math.max(target ?? 0, ...days.map((d) => d.calories), 1);
 
   return (
     <div className="pb-[calc(env(safe-area-inset-bottom)+32px)]">
@@ -36,13 +35,13 @@ export function WeekScreen({ onOpenDay }: { onOpenDay: (date: string) => void })
           <>
             <div className="card mt-0 text-center">
               <div className="text-[0.8rem] text-muted">הפרש ממוצע ליום</div>
-              <div className={`num text-[1.5rem] font-bold mt-0.5 ${avg !== null && avg > target ? 'text-over' : ''}`}>
+              <div className={`num text-[1.5rem] font-bold mt-0.5 ${avg !== null && avg <= target ? 'text-accent-strong' : ''}`}>
                 {avg !== null ? fmtSigned(avg - target) : '—'}
               </div>
             </div>
             <div className="card mt-0 text-center">
               <div className="text-[0.8rem] text-muted">הפרש מצטבר</div>
-              <div className={`num text-[1.5rem] font-bold mt-0.5 ${cumulative !== null && cumulative > 0 ? 'text-over' : ''}`}>
+              <div className={`num text-[1.5rem] font-bold mt-0.5 ${cumulative !== null && cumulative <= 0 ? 'text-accent-strong' : ''}`}>
                 {logged.length ? fmtSigned(cumulative!) : '—'}
               </div>
             </div>
@@ -69,21 +68,10 @@ export function WeekScreen({ onOpenDay }: { onOpenDay: (date: string) => void })
                 </span>
                 {d.logged ? (
                   <>
-                    <span className="relative h-2 rounded-full bg-surface-2">
-                      <span
-                        className={`absolute inset-y-0 start-0 rounded-[inherit] ${over ? 'bg-over' : 'bg-accent'}`}
-                        style={{ width: `${(d.calories / max) * 100}%` }}
-                      />
-                      {target !== null && (
-                        <span
-                          className="absolute -top-[3px] -bottom-[3px] w-0.5 bg-text opacity-35 rounded-[1px]"
-                          style={{ insetInlineStart: `${(target / max) * 100}%` }}
-                        />
-                      )}
-                    </span>
+                    <span />
                     <span className="num font-semibold text-end">{fmtInt(d.calories)}</span>
                     {target !== null && (
-                      <span className={`num text-[0.85rem] text-end ${over ? 'text-over' : 'text-accent-strong'}`}>{fmtSigned(d.calories - target)}</span>
+                      <span className={`num text-[0.85rem] text-end ${over ? '' : 'text-accent-strong'}`}>{fmtSigned(d.calories - target)}</span>
                     )}
                   </>
                 ) : (
