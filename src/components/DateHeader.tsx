@@ -4,15 +4,28 @@ import { ChevronLeft, ChevronRight } from './Icons';
 export function DateHeader({ date, onChange }: { date: string; onChange: (d: string) => void }) {
   const isToday = date >= todayKey();
   return (
-    <div className="date-header">
+    <div className="flex items-center justify-between mt-1">
       {/* RTL: the right arrow goes back in time */}
-      <button className="icon-btn" aria-label="יום קודם" onClick={() => onChange(addDays(date, -1))}>
+      <button
+        className="inline-grid place-items-center w-10 h-10 border-0 rounded-xl bg-transparent text-muted cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-default"
+        aria-label="יום קודם"
+        onClick={() => onChange(addDays(date, -1))}
+      >
         <ChevronRight />
       </button>
-      <button className="date-label" onClick={() => onChange(todayKey())} aria-label="חזרה להיום">
+      <button
+        className="border-0 bg-transparent text-[1.05rem] font-semibold px-3 py-1.5 rounded-[10px] cursor-pointer"
+        onClick={() => onChange(todayKey())}
+        aria-label="חזרה להיום"
+      >
         {dayLabel(date)}
       </button>
-      <button className="icon-btn" aria-label="יום הבא" disabled={isToday} onClick={() => onChange(addDays(date, 1))}>
+      <button
+        className="inline-grid place-items-center w-10 h-10 border-0 rounded-xl bg-transparent text-muted cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-default"
+        aria-label="יום הבא"
+        disabled={isToday}
+        onClick={() => onChange(addDays(date, 1))}
+      >
         <ChevronLeft />
       </button>
     </div>

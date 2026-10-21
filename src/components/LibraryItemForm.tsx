@@ -58,36 +58,36 @@ export function LibraryItemForm({ initial, submitLabel, onSubmit, onCancel, canc
   };
 
   return (
-    <form className="form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-      <label className="label">
+    <form className="flex flex-col gap-3" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+      <label className="flex flex-col gap-1 text-[0.9rem] font-medium [&_.input]:font-normal">
         שם
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="שניצלון עוף טוב, גדול" />
       </label>
-      <label className="label">
-        כינויים נוספים <span className="muted">(מופרדים בפסיק)</span>
+      <label className="flex flex-col gap-1 text-[0.9rem] font-medium [&_.input]:font-normal">
+        כינויים נוספים <span className="text-muted">(מופרדים בפסיק)</span>
         <input className="input" value={aliases} onChange={(e) => setAliases(e.target.value)} placeholder="שניצלונים, שניצל קטן" />
       </label>
-      <label className="label">
+      <label className="flex flex-col gap-1 text-[0.9rem] font-medium [&_.input]:font-normal">
         יחידה
         <input className="input" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="יחידה / 100 גרם / כף גדושה" />
       </label>
-      <div className="form-row">
-        <label className="label">
+      <div className="grid grid-cols-2 gap-2.5">
+        <label className="flex flex-col gap-1 text-[0.9rem] font-medium [&_.input]:font-normal">
           קלוריות ליחידה
           <input className="input num" inputMode="decimal" value={cal} onChange={(e) => setCal(e.target.value)} />
         </label>
-        <label className="label">
-          חלבון ליחידה (ג׳) <span className="muted">אופציונלי</span>
+        <label className="flex flex-col gap-1 text-[0.9rem] font-medium [&_.input]:font-normal">
+          חלבון ליחידה (ג׳) <span className="text-muted">אופציונלי</span>
           <input className="input num" inputMode="decimal" value={protein} onChange={(e) => setProtein(e.target.value)} />
         </label>
       </div>
-      <label className="label">
+      <label className="flex flex-col gap-1 text-[0.9rem] font-medium [&_.input]:font-normal">
         הערה
         <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="בתנור, בלי שמן" />
       </label>
-      <div className="label">
-        סוג ארוחה <span className="muted">(בלי בחירה, ה-AI יסווג)</span>
-        <div className="chips chips-sm">
+      <div className="flex flex-col gap-1 text-[0.9rem] font-medium">
+        סוג ארוחה <span className="text-muted">(בלי בחירה, ה-AI יסווג)</span>
+        <div className="flex flex-wrap gap-1.5 chips-sm">
           {MEAL_TYPES.map((m) => (
             <button
               key={m}
@@ -101,9 +101,9 @@ export function LibraryItemForm({ initial, submitLabel, onSubmit, onCancel, canc
           ))}
         </div>
       </div>
-      <div className="sheet-actions">
+      <div className="flex flex-wrap justify-end gap-2 mt-4">
         {extraActions}
-        <span className="spacer" />
+        <span className="flex-1" />
         <button type="button" className="btn" onClick={onCancel}>{cancelLabel}</button>
         <button type="submit" className="btn btn-primary" disabled={!valid}>{submitLabel}</button>
       </div>

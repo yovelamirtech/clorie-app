@@ -18,9 +18,9 @@ export function Dialog({ title, children, onClose, actions }: Props) {
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
-        <h2 className="sheet-title">{title}</h2>
+        <h2 className="m-0 mb-2 text-[1.15rem]">{title}</h2>
         {children}
-        {actions && <div className="sheet-actions">{actions}</div>}
+        {actions && <div className="flex flex-wrap justify-end gap-2 mt-4">{actions}</div>}
       </div>
     </div>
   );
@@ -47,7 +47,7 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, onConfirm,
         </>
       }
     >
-      {message && <div className="sheet-message">{message}</div>}
+      {message && <div className="text-muted">{message}</div>}
     </Dialog>
   );
 }

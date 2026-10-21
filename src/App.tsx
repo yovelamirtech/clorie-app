@@ -72,13 +72,13 @@ function Shell() {
   const setDate = (d: string) => setPickedDate(d >= today ? null : d);
 
   return (
-    <div className="app">
-      <header className="topbar">
-        <nav className="tabs" aria-label="ניווט">
+    <div className="app max-w-[600px] mx-auto min-h-[100dvh]">
+      <header className="sticky top-0 z-10 flex items-center gap-2 pt-[calc(env(safe-area-inset-top)+8px)] pr-[max(16px,env(safe-area-inset-right))] pb-2 pl-[max(16px,env(safe-area-inset-left))] bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] backdrop-blur-md">
+        <nav className="flex-1 flex gap-1 p-[3px] bg-surface-2 rounded-xl" aria-label="ניווט">
           {TABS.map((t) => (
             <button
               key={t.id}
-              className={`tab ${tab === t.id ? 'tab-on' : ''}`}
+              className={`flex-1 border-0 bg-transparent py-[7px] rounded-[9px] text-muted font-medium cursor-pointer ${tab === t.id ? 'bg-surface text-text shadow-app' : ''}`}
               aria-current={tab === t.id ? 'page' : undefined}
               onClick={() => setTab(t.id)}
             >
@@ -87,7 +87,7 @@ function Shell() {
           ))}
         </nav>
         <button
-          className={`icon-btn ${tab === 'settings' ? 'icon-btn-on' : ''}`}
+          className={`inline-grid place-items-center w-10 h-10 border-0 rounded-xl bg-transparent text-muted cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-default ${tab === 'settings' ? 'text-accent-strong bg-accent-soft' : ''}`}
           aria-label="הגדרות"
           onClick={() => setTab('settings')}
         >
@@ -95,15 +95,15 @@ function Shell() {
         </button>
       </header>
       {!settings.apiKey && tab !== 'settings' && (
-        <div className="install-banner">
-          <span>
+        <div className="flex items-start gap-2 mx-4 mt-1 mb-2 px-3 py-2.5 rounded-xl bg-accent-soft text-[0.875rem]">
+          <span className="flex-1">
             כדי לחשב קלוריות צריך {PROVIDER.keyLabel} (חינמי).{' '}
-            <button className="link-btn" onClick={() => setTab('settings')}>להגדרות</button>
+            <button className="border-0 bg-transparent p-0 text-accent-strong underline cursor-pointer" onClick={() => setTab('settings')}>להגדרות</button>
           </span>
         </div>
       )}
       <InstallBanner />
-      <main className="main">
+      <main className="px-0 pr-[max(16px,env(safe-area-inset-right))] pl-[max(16px,env(safe-area-inset-left))]">
         {tab === 'today' && <TodayScreen date={date} onDateChange={setDate} flow={flow} suggest={suggest} />}
         {tab === 'week' && <WeekScreen onOpenDay={(d) => { setDate(d); setTab('today'); }} />}
         {tab === 'library' && <LibraryScreen classifier={classifier} />}

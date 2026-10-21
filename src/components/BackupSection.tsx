@@ -80,7 +80,7 @@ export function BackupSection() {
             </>
           }
         >
-          <div className="sheet-message">
+          <div className="text-muted">
             בקובץ: {importStep.backup.entries.length} רישומים ו-{importStep.backup.library.length} פריטי מאגר.
             <ul className="bullets">
               <li><b>מיזוג</b>: מוסיף את מה שחסר, בלי למחוק כלום.</li>
