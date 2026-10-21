@@ -22,6 +22,8 @@ type Actions = {
   deleteEntry: (id: string) => void;
   upsertLibraryItem: (item: LibraryItem) => void;
   deleteLibraryItem: (id: string) => void;
+  /** Applied synchronously to the latest library, for automatic updates of many items at once. */
+  updateLibrary: (fn: (l: LibraryItem[]) => LibraryItem[]) => void;
   updateUi: (patch: Partial<UiPrefs>) => void;
   /** Applied synchronously to the latest queue, so `fn` can also report what it found. */
   updateQueue: (fn: (q: QueueItem[]) => QueueItem[]) => void;
@@ -84,6 +86,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       },
       deleteLibraryItem(id) {
         const library = cur().library.filter((x) => x.id !== id);
+        commit({ ...cur(), library });
+        saveLibrary(library).catch(logErr);
+      },
+      updateLibrary(fn) {
+        const library = fn(cur().library);
         commit({ ...cur(), library });
         saveLibrary(library).catch(logErr);
       },

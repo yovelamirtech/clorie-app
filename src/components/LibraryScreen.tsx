@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store';
 import type { LibraryItem } from '../types';
+import { MEAL_LABELS } from '../meals';
 import { fmt1, fmtInt } from '../util';
 import { ConfirmDialog, Dialog } from './Dialog';
 import { Plus, Trash } from './Icons';
@@ -35,6 +36,11 @@ export function LibraryScreen() {
                 <span className="lib-name">{i.name}</span>
                 <span className="lib-unit">{i.unit}{i.note ? ` · ${i.note}` : ''}</span>
                 {i.aliases.length > 0 && <span className="lib-aliases">{i.aliases.join(', ')}</span>}
+                {i.mealTypes && i.mealTypes.length > 0 && (
+                  <span className="lib-meals">
+                    {i.mealTypes.map((m) => <span key={m} className="badge badge-meal">{MEAL_LABELS[m]}</span>)}
+                  </span>
+                )}
               </span>
               <span className="lib-nums">
                 <span className="num lib-cal">{fmtInt(i.caloriesPerUnit)}</span>

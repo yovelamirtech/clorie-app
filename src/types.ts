@@ -10,6 +10,8 @@ export type Settings = {
   onboardingDone: boolean;
 };
 
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
 export type LibraryItem = {
   id: string;
   name: string;
@@ -18,6 +20,8 @@ export type LibraryItem = {
   caloriesPerUnit: number;
   proteinPerUnit?: number;
   note?: string;
+  mealTypes?: MealType[]; // meals this food fits; undefined = not classified yet
+  mealTypesByUser?: boolean; // set by hand: the AI no longer changes mealTypes
   updatedAt: string; // ISO
 };
 
@@ -42,6 +46,7 @@ export type Entry = {
   title: string;
   items: EntryItem[];
   clarifications?: Clarification[];
+  mealType?: MealType; // not shown in the diary; feeds the library's meal types
 };
 
 /** Relay progress of a queued request. */

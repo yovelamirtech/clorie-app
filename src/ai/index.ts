@@ -5,6 +5,7 @@ export {
   analyzeFood,
   buildAnalyzeRequest,
   buildAnalyzeRequestChain,
+  classifyMeals,
   nextModelInChain,
   parseAnalyzeResponse,
   testConnection,

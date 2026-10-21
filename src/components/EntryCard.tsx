@@ -103,7 +103,7 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
     const existing = item.libraryItemId ? library.find((l) => l.id === item.libraryItemId) : undefined;
     const draft: LibraryDraft = existing
       ? { ...existing, unit: per.unit, caloriesPerUnit: per.caloriesPerUnit, proteinPerUnit: per.proteinPerUnit }
-      : { name: item.name, aliases: [], ...per };
+      : { name: item.name, aliases: [], ...per, ...(entry.mealType ? { mealTypes: [entry.mealType] } : {}) };
     setSuggestion({
       itemId: item.id,
       draft,

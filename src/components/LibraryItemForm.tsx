@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import type { LibraryItem } from '../types';
+import type { LibraryItem, MealType } from '../types';
+import { MEAL_LABELS, MEAL_TYPES } from '../meals';
 import { parseNum, round1, uid } from '../util';
 
 export type LibraryDraft = Partial<Omit<LibraryItem, 'updatedAt'>>;
@@ -20,10 +21,26 @@ export function LibraryItemForm({ initial, submitLabel, onSubmit, onCancel, canc
   const [cal, setCal] = useState(initial.caloriesPerUnit?.toString() ?? '');
   const [protein, setProtein] = useState(initial.proteinPerUnit?.toString() ?? '');
   const [note, setNote] = useState(initial.note ?? '');
+  const [meals, setMeals] = useState<MealType[]>(initial.mealTypes ?? []);
+
+  const toggleMeal = (m: MealType) => setMeals((cur) => MEAL_TYPES.filter((x) => (x === m ? !cur.includes(x) : cur.includes(x))));
 
   const calN = parseNum(cal);
   const protN = parseNum(protein);
   const valid = name.trim() && unit.trim() && calN !== null && calN >= 0 && (protein.trim() === '' || (protN !== null && protN >= 0));
+
+  /** Unchanged meals keep their origin; a hand-picked set locks them; clearing them lets the AI classify again. */
+  const mealFields = (): Pick<LibraryItem, 'mealTypes' | 'mealTypesByUser'> => {
+    const before = initial.mealTypes ?? [];
+    const changed = meals.length !== before.length || meals.some((m) => !before.includes(m));
+    if (!changed) {
+      return {
+        ...(initial.mealTypes ? { mealTypes: initial.mealTypes } : {}),
+        ...(initial.mealTypesByUser ? { mealTypesByUser: true } : {}),
+      };
+    }
+    return meals.length ? { mealTypes: meals, mealTypesByUser: true } : {};
+  };
 
   const submit = () => {
     if (!valid) return;
@@ -35,6 +52,7 @@ export function LibraryItemForm({ initial, submitLabel, onSubmit, onCancel, canc
       caloriesPerUnit: Math.round(calN!),
       ...(protN !== null ? { proteinPerUnit: round1(protN) } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
+      ...mealFields(),
       updatedAt: new Date().toISOString(),
     });
   };
@@ -67,6 +85,22 @@ export function LibraryItemForm({ initial, submitLabel, onSubmit, onCancel, canc
         הערה
         <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="בתנור, בלי שמן" />
       </label>
+      <div className="label">
+        סוג ארוחה <span className="muted">(בלי בחירה, ה-AI יסווג)</span>
+        <div className="chips chips-sm">
+          {MEAL_TYPES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`chip ${meals.includes(m) ? 'chip-on' : ''}`}
+              aria-pressed={meals.includes(m)}
+              onClick={() => toggleMeal(m)}
+            >
+              {MEAL_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="sheet-actions">
         {extraActions}
         <span className="spacer" />
