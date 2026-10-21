@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react';
+import { timeLabel } from '../dates';
+import type { MealClassifier } from '../mealClassifier';
+import { relayWaitingText } from '../relayJobs';
 import { useStore } from '../store';
 import type { LibraryItem } from '../types';
 import { MEAL_LABELS } from '../meals';
@@ -7,8 +10,50 @@ import { ConfirmDialog, Dialog } from './Dialog';
 import { Plus, Trash } from './Icons';
 import { LibraryItemForm } from './LibraryItemForm';
 
-export function LibraryScreen() {
-  const { library, actions } = useStore();
+/** Where classifying the library by meal stands; nothing when every item is classified. */
+function ClassifyStatusLine({ classifier, hasKey }: { classifier: MealClassifier; hasKey: boolean }) {
+  const { status, job, unclassified, retry } = classifier;
+  if (job) {
+    return (
+      <div className="classify-status">
+        <div className="loading"><span className="spinner" /> מסווג {job.itemIds.length} פריטים לפי סוג ארוחה, דרך השרת</div>
+        <div className="small muted">
+          {job.sentAt && <>נשלח ב-{timeLabel(job.sentAt)} · </>}
+          {relayWaitingText(job.relay)}
+          {job.relay?.attempts ? ` (ניסיון ${job.relay.attempts})` : ''}
+        </div>
+      </div>
+    );
+  }
+  if (status.kind === 'running') {
+    return (
+      <div className="classify-status">
+        <div className="loading"><span className="spinner" /> מסווג {status.count} פריטים לפי סוג ארוחה…</div>
+      </div>
+    );
+  }
+  if (status.kind === 'failed') {
+    return (
+      <div className="classify-status classify-failed">
+        <div className="error-msg">הסיווג לפי סוג ארוחה נכשל ({timeLabel(status.at)}): {status.message}</div>
+        {status.detail && <div className="error-detail">{status.detail}</div>}
+        <div className="row-end"><button className="btn btn-sm" onClick={retry}>נסה שוב</button></div>
+      </div>
+    );
+  }
+  if (!unclassified) return null;
+  return (
+    <div className="classify-status">
+      <div className="small">
+        {unclassified} פריטים עוד לא סווגו לפי סוג ארוחה.{!hasKey && ' כדי לסווג צריך מפתח API בהגדרות.'}
+      </div>
+      {hasKey && <div className="row-end"><button className="btn btn-sm" onClick={retry}>סווג עכשיו</button></div>}
+    </div>
+  );
+}
+
+export function LibraryScreen({ classifier }: { classifier: MealClassifier }) {
+  const { library, settings, actions } = useStore();
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<LibraryItem | 'new' | null>(null);
   const [deleting, setDeleting] = useState<LibraryItem | null>(null);
@@ -27,6 +72,7 @@ export function LibraryScreen() {
         <button className="btn btn-primary" onClick={() => setEditing('new')}><Plus /> הוספה</button>
       </div>
       <p className="hint">הפריטים כאן נשלחים ל-AI בכל חישוב, והוא מעדיף אותם על פני ערכים כלליים.</p>
+      <ClassifyStatusLine classifier={classifier} hasKey={!!settings.apiKey.trim()} />
 
       <ul className="lib-list">
         {list.map((i) => (

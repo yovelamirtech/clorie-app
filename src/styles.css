@@ -529,6 +529,10 @@ a { color: var(--accent-strong); }
 
 .toolbar { display: flex; gap: 8px; margin-top: 8px; }
 
+.classify-status { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); font-size: 0.9rem; }
+.classify-status .row-end { margin-top: 6px; }
+.classify-status .small { margin-top: 4px; }
+.classify-failed { border-color: var(--over); background: var(--over-soft); }
 .lib-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 
 .lib-item {
