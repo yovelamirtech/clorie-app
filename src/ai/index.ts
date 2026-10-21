@@ -8,6 +8,8 @@ export {
   classifyMeals,
   nextModelInChain,
   parseAnalyzeResponse,
+  recommendMeals,
   testConnection,
 } from './gemini';
 export { AiError, type AiErrorKind, type FoodResult, type HttpRequest, type Question } from './food';
+export { OVER_TARGET_BUDGET, type MealOption } from './recommend';
