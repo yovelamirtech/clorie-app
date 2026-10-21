@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { AddFlow } from '../addFlow';
+import type { SuggestFlow } from '../suggestFlow';
 import { useStore } from '../store';
 import { todayKey } from '../dates';
 import { sumCalories, sumProtein } from '../util';
@@ -14,9 +15,10 @@ type Props = {
   date: string;
   onDateChange: (d: string) => void;
   flow: AddFlow;
+  suggest: SuggestFlow;
 };
 
-export function TodayScreen({ date, onDateChange, flow }: Props) {
+export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
   const { entries, settings } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export function TodayScreen({ date, onDateChange, flow }: Props) {
     <div className="screen today">
       <DateHeader date={date} onChange={onDateChange} />
       <DaySummary calories={sumCalories(allItems)} protein={sumProtein(allItems)} target={settings.dailyTarget} />
-      {date === todayKey() && settings.dailyTarget !== null && <MealSuggest target={settings.dailyTarget} dayEntries={dayEntries} />}
+      {date === todayKey() && settings.dailyTarget !== null && <MealSuggest flow={suggest} target={settings.dailyTarget} dayEntries={dayEntries} />}
 
       <div className="entries">
         {dayEntries.map((e) => (

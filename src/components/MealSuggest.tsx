@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
-import { AiError, OVER_TARGET_BUDGET, recommendMeals, type MealOption } from '../ai';
-import { MEAL_LABELS, MEAL_TYPES, mealBudget, mealByTime } from '../meals';
+import { useEffect, useMemo, useState } from 'react';
+import { OVER_TARGET_BUDGET, type MealOption } from '../ai';
+import { MEAL_LABELS, MEAL_TYPES, mealBudget, mealByTime, type MealBudget } from '../meals';
 import { useStore } from '../store';
-import type { Entry, MealType } from '../types';
+import type { SuggestFlow } from '../suggestFlow';
+import type { Entry, MealType, SuggestJob } from '../types';
 import { entryCalories, fmt1, fmtInt } from '../util';
 import { Dialog } from './Dialog';
 import { Book } from './Icons';
@@ -15,54 +16,45 @@ const SOURCE_LABELS: Record<MealOption['source'], string> = {
   new: 'הצעה חדשה',
 };
 
-type Status = { kind: 'idle' } | { kind: 'loading'; mode: 'library' | 'new' } | { kind: 'error'; message: string; mode: 'library' | 'new' };
+/** Progress of a request waiting on the relay. */
+function waitingText(job: SuggestJob): string {
+  const r = job.relay;
+  if (r?.offline) return 'אין חיבור לשרת כרגע. ננסה שוב.';
+  if (!r?.accepted) return 'שולח לשרת…';
+  if (r.attempts > 0 && r.lastError) return `ממתין · ${r.lastError}`;
+  return 'ממתין לתשובה…';
+}
 
-function SuggestDialog({ target, dayEntries, onClose }: { target: number; dayEntries: Entry[]; onClose: () => void }) {
-  const { settings, library } = useStore();
-  const [meal, setMeal] = useState<MealType>(() => mealByTime(new Date()));
-  const [options, setOptions] = useState<MealOption[]>([]);
-  const [status, setStatus] = useState<Status>({ kind: 'idle' });
-  // Answers to an earlier request (before the meal was changed) are dropped.
-  const requestId = useRef(0);
+function SuggestDialog({ flow, target, dayEntries, onClose }: { flow: SuggestFlow; target: number; dayEntries: Entry[]; onClose: () => void }) {
+  const { settings } = useStore();
+  const { state, loading, request, clear, markSeen } = flow;
+  const [meal, setMeal] = useState<MealType>(() => state?.meal ?? mealByTime(new Date()));
 
   const eaten = useMemo(() => new Set(dayEntries.map((e) => e.mealType ?? mealByTime(new Date(e.createdAt)))), [dayEntries]);
-  const remaining = target - dayEntries.reduce((s, e) => s + entryCalories(e), 0);
-  const budget = mealBudget(meal, remaining, eaten);
+  const liveRemaining = target - dayEntries.reduce((s, e) => s + entryCalories(e), 0);
+  const liveBudget = mealBudget(meal, liveRemaining, eaten);
+
+  // Saved suggestions keep the budget they were made for.
+  const current = state?.meal === meal ? state : undefined;
+  const remaining = current ? current.remaining : liveRemaining;
+  const budget: MealBudget = current ? { calories: current.budget, reserved: current.reserved } : liveBudget;
+  const options = current?.options ?? [];
+
+  useEffect(() => {
+    if (options.length) markSeen();
+  }, [options.length, markSeen]);
 
   const pickMeal = (m: MealType) => {
-    requestId.current++;
+    if (state && state.meal !== m) clear();
     setMeal(m);
-    setOptions([]);
-    setStatus({ kind: 'idle' });
   };
 
-  const request = async (mode: 'library' | 'new') => {
-    const id = ++requestId.current;
-    setStatus({ kind: 'loading', mode });
-    try {
-      const res = await recommendMeals(
-        { apiKey: settings.apiKey, model: settings.model },
-        {
-          meal,
-          budget: budget.calories,
-          library,
-          eatenToday: dayEntries.map((e) => e.title),
-          mode,
-          exclude: mode === 'new' ? options.map((o) => o.title) : [],
-        },
-      );
-      if (id !== requestId.current) return;
-      setOptions((cur) => (mode === 'new' ? [...cur, ...res] : res));
-      setStatus({ kind: 'idle' });
-    } catch (e) {
-      if (id !== requestId.current) return;
-      const message = e instanceof AiError ? e.message : String(e);
-      setStatus({ kind: 'error', message, mode });
-    }
-  };
+  const ask = (mode: 'library' | 'new') =>
+    request(meal, mode, { budget: liveBudget, remaining: liveRemaining, eatenToday: dayEntries.map((e) => e.title) });
 
-  const loading = status.kind === 'loading';
   const noKey = !settings.apiKey.trim();
+  const job = current?.job;
+  const error = current?.error;
 
   return (
     <Dialog title="מה לאכול?" onClose={onClose}>
@@ -114,23 +106,31 @@ function SuggestDialog({ target, dayEntries, onClose }: { target: number; dayEnt
         </ul>
       )}
 
-      {loading && (
-        <div className="loading suggest-loading">
-          <span className="spinner" /> {status.mode === 'new' ? 'מחפש הצעות חדשות…' : 'מחפש הצעות…'}
+      {current && loading && (
+        <div className="suggest-loading">
+          <div className="loading">
+            <span className="spinner" /> {loading === 'new' ? 'מחפש הצעות חדשות…' : 'מחפש הצעות…'}
+          </div>
+          {job && (
+            <>
+              <div className="small">{waitingText(job)}</div>
+              <div className="small">אפשר לסגור את האפליקציה. ההצעות יחכו כאן.</div>
+            </>
+          )}
         </div>
       )}
-      {status.kind === 'error' && (
+      {error && (
         <div className="suggest-error">
-          <div className="error-msg">{status.message}</div>
-          <button className="btn btn-sm" onClick={() => request(status.mode)}>נסה שוב</button>
+          <div className="error-msg">{error.message}</div>
+          <button className="btn btn-sm" onClick={() => ask(error.mode)}>נסה שוב</button>
         </div>
       )}
 
       <div className="sheet-actions">
         {options.length > 0 ? (
-          <button className="btn btn-sm" disabled={loading || noKey} onClick={() => request('new')}>משהו אחר? הצעות חדשות</button>
+          <button className="btn btn-sm" disabled={!!loading || noKey} onClick={() => ask('new')}>משהו אחר? הצעות חדשות</button>
         ) : (
-          <button className="btn btn-primary" disabled={loading || noKey} onClick={() => request('library')}>הצעות</button>
+          <button className="btn btn-primary" disabled={!!loading || noKey} onClick={() => ask('library')}>הצעות</button>
         )}
         <span className="spacer" />
         <button className="btn" onClick={onClose}>סגירה</button>
@@ -139,15 +139,17 @@ function SuggestDialog({ target, dayEntries, onClose }: { target: number; dayEnt
   );
 }
 
-/** A small "what should I eat?" button under the day summary, opening meal suggestions. */
-export function MealSuggest({ target, dayEntries }: { target: number; dayEntries: Entry[] }) {
+/** A small "what should I eat?" link under the day summary, opening meal suggestions. */
+export function MealSuggest({ flow, target, dayEntries }: { flow: SuggestFlow; target: number; dayEntries: Entry[] }) {
   const [open, setOpen] = useState(false);
+  const { state, loading } = flow;
+  const label = loading ? 'מחפש הצעות…' : state && state.options.length > 0 && !state.seen ? 'ההצעות מוכנות' : 'מה לאכול?';
   return (
     <>
       <div className="suggest-open">
-        <button className="link-btn" onClick={() => setOpen(true)}>מה לאכול?</button>
+        <button className="link-btn" onClick={() => setOpen(true)}>{label}</button>
       </div>
-      {open && <SuggestDialog target={target} dayEntries={dayEntries} onClose={() => setOpen(false)} />}
+      {open && <SuggestDialog flow={flow} target={target} dayEntries={dayEntries} onClose={() => setOpen(false)} />}
     </>
   );
 }

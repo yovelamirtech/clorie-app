@@ -1,5 +1,5 @@
 import { createStore, get, set, setMany, clear } from 'idb-keyval';
-import type { Entry, LibraryItem, QueueItem, Settings } from './types';
+import type { AiJobs, Entry, LibraryItem, QueueItem, Settings } from './types';
 import { seedLibrary } from './seed';
 import { PROVIDER } from './ai';
 
@@ -22,17 +22,19 @@ export type AppData = {
   library: LibraryItem[];
   ui: UiPrefs;
   queue: QueueItem[];
+  jobs: AiJobs;
 };
 
 const store = createStore('calories-diary', 'kv');
 
 export async function loadAll(): Promise<AppData> {
-  const [settings, entries, library, ui, queue] = await Promise.all([
+  const [settings, entries, library, ui, queue, jobs] = await Promise.all([
     get<Settings>('settings', store),
     get<Entry[]>('entries', store),
     get<LibraryItem[]>('library', store),
     get<UiPrefs>('ui', store),
     get<QueueItem[]>('queue', store),
+    get<AiJobs>('jobs', store),
   ]);
   const data: AppData = {
     settings: { ...defaultSettings(), ...settings },
@@ -40,6 +42,7 @@ export async function loadAll(): Promise<AppData> {
     library: library ?? seedLibrary(),
     ui: ui ?? {},
     queue: queue ?? [],
+    jobs: jobs ?? {},
   };
   // First launch: persist the starter library.
   if (!library) await set('library', data.library, store);
@@ -58,6 +61,7 @@ export const saveEntries = (e: Entry[]) => set('entries', e, store);
 export const saveLibrary = (l: LibraryItem[]) => set('library', l, store);
 export const saveUi = (u: UiPrefs) => set('ui', u, store);
 export const saveQueue = (q: QueueItem[]) => set('queue', q, store);
+export const saveJobs = (j: AiJobs) => set('jobs', j, store);
 
 export async function saveAll(d: AppData) {
   await setMany(
@@ -67,6 +71,7 @@ export async function saveAll(d: AppData) {
       ['library', d.library],
       ['ui', d.ui],
       ['queue', d.queue],
+      ['jobs', d.jobs],
     ],
     store,
   );

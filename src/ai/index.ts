@@ -5,11 +5,15 @@ export {
   analyzeFood,
   buildAnalyzeRequest,
   buildAnalyzeRequestChain,
+  buildClassifyRequestChain,
+  buildRecommendRequestChain,
   classifyMeals,
   nextModelInChain,
   parseAnalyzeResponse,
+  parseClassifyResponse,
+  parseRecommendResponse,
   recommendMeals,
   testConnection,
 } from './gemini';
 export { AiError, type AiErrorKind, type FoodResult, type HttpRequest, type Question } from './food';
-export { OVER_TARGET_BUDGET, type MealOption } from './recommend';
+export { OVER_TARGET_BUDGET, type MealOption, type RecommendRequest } from './recommend';
