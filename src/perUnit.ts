@@ -32,8 +32,12 @@ const SINGULAR: Record<string, string> = {
 /** Find the numeric amount in a free-text quantity like "4 יחידות", "1½ כוס", "חצי גביע", "330 גרם מבושל". */
 export function parseAmount(q: string): { amount: number; rest: string } | null {
   const s = q.trim();
-  let m = s.match(/(\d+)\s*\/\s*(\d+)/);
-  if (m && Number(m[2]) > 0) return { amount: Number(m[1]) / Number(m[2]), rest: s.replace(m[0], ' ') };
+  // Optional whole number before the fraction: "1 1/2" → 1.5.
+  let m = s.match(/(?:(\d+)\s+)?(\d+)\s*\/\s*(\d+)/);
+  if (m && Number(m[3]) > 0) {
+    const whole = m[1] ? Number(m[1]) : 0;
+    return { amount: whole + Number(m[2]) / Number(m[3]), rest: s.replace(m[0], ' ') };
+  }
   m = s.match(/(\d+(?:[.,]\d+)?)?\s*([½¼¾⅓⅔])/);
   if (m) {
     const whole = m[1] ? Number(m[1].replace(',', '.')) : 0;
