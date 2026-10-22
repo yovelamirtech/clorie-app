@@ -2,8 +2,8 @@
 // until the upstream API gives a final answer, so the app can be closed while a request waits out
 // rate limits or outages.
 // Provider-neutral: the app builds the requests and parses the answer; the relay only replays them.
-// It only knows that a 429 means "try the next request in the chain instead of waiting" — it has no
-// idea what a request chain actually encodes (different models, for the app's case).
+// It only knows that a retryable failure means "try the next request in the chain instead of
+// waiting" — it has no idea what a request chain actually encodes (different models, for the app's case).
 //
 //   PUT    /jobs/:id  { requests: [{ url, headers, body }, …] }  → JobStatus  (idempotent: an existing job is kept)
 //   GET    /jobs/:id                                             → JobStatus, or 404 when the relay doesn't know the job
@@ -32,9 +32,9 @@ export type JobStatus =
   | { state: 'queued'; attempts: number; nextAttemptAt: number; last?: Reply }
   | { state: 'done'; attempts: number; status: number; body: string };
 
+// A retryable failure (rate limit, overload, timeout, …) switches to the next request in the chain
+// instead of waiting, when there is one: an overloaded model can stay that way for hours.
 const RETRYABLE = new Set([0, 408, 429, 500, 502, 503, 504]);
-// A 429 (rate limit) switches to the next request in the chain instead of waiting, when there is one.
-const RATE_LIMIT_STATUS = 429;
 const BACKOFF_S = [15, 30, 60, 120, 300, 600, 900];
 const MAX_DELAY_S = 3600;
 const GIVE_UP_AFTER_MS = 24 * 3600_000;
@@ -115,7 +115,7 @@ export class Job extends DurableObject<Env> {
         const now = Date.now();
         const attempts = job.attempts + 1;
 
-        if (reply.status === RATE_LIMIT_STATUS && idx < job.requests.length - 1) {
+        if (RETRYABLE.has(reply.status) && idx < job.requests.length - 1) {
           await this.ctx.storage.put<JobRecord>('job', { ...job, attempts, requestIndex: idx + 1, last: reply });
           continue;
         }
