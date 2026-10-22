@@ -1,7 +1,7 @@
 import type { AppData } from './db';
-import type { Entry, LibraryItem, Settings } from './types';
-import { todayKey } from './dates';
-import { isMealType, mealTypesFrom } from './meals';
+import type { Entry, LibraryItem, Settings } from '../types';
+import { todayKey } from '../utils/dates';
+import { isMealType, mealTypesFrom } from '../utils/meals';
 
 const APP_ID = 'calories-diary';
 const VERSION = 1;

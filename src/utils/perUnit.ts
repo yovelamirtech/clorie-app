@@ -1,4 +1,4 @@
-import { round1 } from './util';
+import { round1 } from './common';
 
 const UNICODE_FRACTIONS: Record<string, number> = { '½': 1 / 2, '¼': 1 / 4, '¾': 3 / 4, '⅓': 1 / 3, '⅔': 2 / 3 };
 const WORD_AMOUNTS: [RegExp, number][] = [

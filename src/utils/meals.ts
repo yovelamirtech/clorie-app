@@ -1,4 +1,4 @@
-import type { LibraryItem, MealType } from './types';
+import type { LibraryItem, MealType } from '../types';
 import { toDateKey } from './dates';
 
 export type MainMeal = Exclude<MealType, 'snack'>;

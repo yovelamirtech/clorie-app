@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAmount } from './perUnit';
+import { parseAmount } from '../src/utils/perUnit';
 
 describe('parseAmount', () => {
   it('reads a whole number followed by a unicode fraction', () => {

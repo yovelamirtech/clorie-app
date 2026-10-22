@@ -1,6 +1,6 @@
-import type { ParsedItem } from './ai/food';
-import type { EntryItem, LibraryItem, MealType } from './types';
-import { uid } from './util';
+import type { ParsedItem } from '../ai/food';
+import type { EntryItem, LibraryItem, MealType } from '../types';
+import { uid } from './common';
 
 const norm = (s: string) => s.trim().toLowerCase();
 

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, FALL_BACK_ON, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
-import { RelayError, deleteJob, getJob, putJob, relayConfig } from './relay';
-import { describeRelayFailure } from './relayJobs';
-import { withAutoLibrary } from './autoLibrary';
-import { learnMealType, mealByTime, mealHintFor } from './meals';
-import { useStore } from './store';
-import type { Clarification, Entry, QueueItem } from './types';
-import { uid } from './util';
+import { AiError, FALL_BACK_ON, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from '../ai';
+import { RelayError, deleteJob, getJob, putJob, relayConfig } from '../services/relay';
+import { describeRelayFailure } from '../services/relayJobs';
+import { withAutoLibrary } from '../utils/autoLibrary';
+import { learnMealType, mealByTime, mealHintFor } from '../utils/meals';
+import { useStore } from '../store/store';
+import type { Clarification, Entry, QueueItem } from '../types';
+import { uid } from '../utils/common';
 
 type Loading = Extract<QueueItem, { phase: 'loading' }>;
 

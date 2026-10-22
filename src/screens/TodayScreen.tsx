@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AddFlow } from '../addFlow';
-import type { SuggestFlow } from '../suggestFlow';
-import { useStore } from '../store';
-import { todayKey } from '../dates';
-import { sumCalories, sumProtein } from '../util';
-import { Composer } from './Composer';
-import { DateHeader } from './DateHeader';
-import { DaySummary } from './DaySummary';
-import { EntryCard } from './EntryCard';
-import { MealSuggest } from './MealSuggest';
-import { PendingCard } from './PendingCard';
+import type { AddFlow } from '../hooks/addFlow';
+import type { SuggestFlow } from '../hooks/suggestFlow';
+import { useStore } from '../store/store';
+import { todayKey } from '../utils/dates';
+import { sumCalories, sumProtein } from '../utils/common';
+import { Composer } from '../components/Composer';
+import { DateHeader } from '../components/DateHeader';
+import { DaySummary } from '../components/DaySummary';
+import { EntryCard } from '../components/EntryCard';
+import { MealSuggest } from '../components/MealSuggest';
+import { PendingCard } from '../components/PendingCard';
 
 type Props = {
   date: string;

@@ -1,4 +1,4 @@
-import { fmt1, fmtInt } from '../util';
+import { fmt1, fmtInt } from '../utils/common';
 
 export function DaySummary({ calories, protein }: { calories: number; protein: number }) {
   return (

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { LibraryItem, MealType } from '../types';
-import { MEAL_LABELS, MEAL_TYPES } from '../meals';
-import { parseNum, round1, uid } from '../util';
+import { MEAL_LABELS, MEAL_TYPES } from '../utils/meals';
+import { parseNum, round1, uid } from '../utils/common';
 
 export type LibraryDraft = Partial<Omit<LibraryItem, 'updatedAt'>>;
 

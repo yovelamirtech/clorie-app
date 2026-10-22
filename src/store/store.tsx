@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { AiJobs, Entry, LibraryItem, QueueItem, Settings } from './types';
+import type { AiJobs, Entry, LibraryItem, QueueItem, Settings } from '../types';
 import {
   type AppData,
   type UiPrefs,
@@ -13,7 +13,7 @@ import {
   saveSettings,
   saveUi,
   wipeAll,
-} from './db';
+} from '../services/db';
 import { seedLibrary } from './seed';
 
 type Actions = {

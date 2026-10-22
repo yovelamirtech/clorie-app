@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
-import { timeLabel } from '../dates';
-import type { MealClassifier } from '../mealClassifier';
-import { relayWaitingText } from '../relayJobs';
-import { useStore } from '../store';
+import { timeLabel } from '../utils/dates';
+import type { MealClassifier } from '../hooks/mealClassifier';
+import { relayWaitingText } from '../services/relayJobs';
+import { useStore } from '../store/store';
 import type { LibraryItem } from '../types';
-import { MEAL_LABELS } from '../meals';
-import { fmt1, fmtInt } from '../util';
-import { ConfirmDialog, Dialog } from './Dialog';
-import { Plus, Trash } from './Icons';
-import { LibraryItemForm } from './LibraryItemForm';
+import { MEAL_LABELS } from '../utils/meals';
+import { fmt1, fmtInt } from '../utils/common';
+import { ConfirmDialog, Dialog } from '../components/Dialog';
+import { Plus, Trash } from '../components/Icons';
+import { LibraryItemForm } from '../components/LibraryItemForm';
 
 /** Where classifying the library by meal stands; nothing when every item is classified. */
 function ClassifyStatusLine({ classifier, hasKey }: { classifier: MealClassifier; hasKey: boolean }) {
