@@ -12,6 +12,7 @@ import {
 } from './recommend';
 import {
   AiError,
+  type AiErrorKind,
   type ApiConfig,
   type FoodResult,
   type HttpRequest,
@@ -21,10 +22,13 @@ import {
   validateResult,
 } from './food';
 
-// Best model first; once its free-tier quota is used up for the day, analyzeFood falls back to the
+// Best model first; when it's rate-limited or overloaded, the request falls back to the
 // next one. There's no 3.8 Flash-Lite yet, so the fallback is the 3.5 generation's Flash-Lite
 // (ai.google.dev/gemini-api/docs/models, checked 2026-10).
 export const MODEL_CHAIN = ['gemini-3.8-flash', 'gemini-3.5-flash-lite'] as const;
+
+/** Failures that move a direct request to the next model in MODEL_CHAIN (the relay does the same). */
+export const FALL_BACK_ON: ReadonlySet<AiErrorKind> = new Set<AiErrorKind>(['rate_limit', 'overloaded', 'server']);
 
 export const PROVIDER = {
   id: 'gemini',
@@ -241,8 +245,8 @@ export function parseAnalyzeResponse(
 
 /**
  * Requests for the configured model and, when it's in MODEL_CHAIN, every model after it — in that
- * order. The relay tries them in sequence, moving to the next only on a rate-limit, so a request
- * that waits out rate limits on the relay gets the same fallback the direct (in-app) path does.
+ * order. The relay tries them in sequence, moving to the next on a rate-limit or overload, so a request
+ * that waits on the relay gets the same fallback the direct (in-app) path does.
  */
 export function buildAnalyzeRequestChain(
   cfg: ApiConfig,
@@ -273,7 +277,7 @@ export async function analyzeFood(
 }
 
 /**
- * Send a generateContent request directly from the browser. On a rate limit, step down MODEL_CHAIN
+ * Send a generateContent request directly from the browser. On a rate limit or overload, step down MODEL_CHAIN
  * and retry right away, for this call only (like the add flow does for food analysis).
  */
 async function generateWithFallback(cfg: ApiConfig, system: string, user: string, schema: object): Promise<unknown> {
@@ -283,7 +287,7 @@ async function generateWithFallback(cfg: ApiConfig, system: string, user: string
       const res = await send({ method: 'POST', ...generateRequest({ ...cfg, model }, system, user, schema) });
       return parseGenerateResponse(res.status, res.body);
     } catch (e) {
-      const next = e instanceof AiError && e.kind === 'rate_limit' ? nextModelInChain(model) : undefined;
+      const next = e instanceof AiError && FALL_BACK_ON.has(e.kind) ? nextModelInChain(model) : undefined;
       if (!next) throw e;
       model = next;
     }

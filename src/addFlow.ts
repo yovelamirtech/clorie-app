@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
+import { AiError, FALL_BACK_ON, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from './ai';
 import { RelayError, deleteJob, getJob, putJob, relayConfig } from './relay';
 import { describeRelayFailure } from './relayJobs';
 import { withAutoLibrary } from './autoLibrary';
@@ -12,6 +12,7 @@ type Loading = Extract<QueueItem, { phase: 'loading' }>;
 
 /** How often waiting requests are checked while the app is open. */
 const TICK_MS = 5000;
+
 
 const toError = (e: unknown) => {
   const err = e instanceof AiError ? e : new AiError('invalid', String(e));
@@ -97,9 +98,9 @@ export function useAddFlow() {
         const relay = relayConfig(settings);
 
         if (!relay) {
-          // Every request starts from the configured model; on a rate-limit, step down the fallback
-          // chain and retry right away, for this request only — settings aren't touched, so the next
-          // request starts from the configured model again.
+          // Every request starts from the configured model; on a rate-limit or overload, step down the
+          // fallback chain and retry right away, for this request only — settings aren't touched, so
+          // the next request starts from the configured model again.
           let model = cfg.model;
           let res: FoodResult;
           for (;;) {
@@ -107,7 +108,7 @@ export function useAddFlow() {
               res = await analyzeFood({ ...cfg, model }, item.text, library, hint, item.answers);
               break;
             } catch (e) {
-              const next = e instanceof AiError && e.kind === 'rate_limit' ? nextModelInChain(model) : undefined;
+              const next = e instanceof AiError && FALL_BACK_ON.has(e.kind) ? nextModelInChain(model) : undefined;
               if (!next) {
                 settle(item, () => { throw e; });
                 return;

@@ -1,5 +1,6 @@
 // The active AI provider. To switch providers, point these exports at another module with the same API.
 export {
+  FALL_BACK_ON,
   MODEL_CHAIN,
   PROVIDER,
   analyzeFood,
