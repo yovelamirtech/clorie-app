@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useStore } from '../store';
-import { parseNum } from '../util';
+import { useStore } from '../store/store';
+import { parseNum } from '../utils/common';
 
 export function Onboarding() {
   const { actions } = useStore();

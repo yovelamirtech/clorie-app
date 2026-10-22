@@ -1,4 +1,4 @@
-import { addDays, dayLabel, todayKey } from '../dates';
+import { addDays, dayLabel, todayKey } from '../utils/dates';
 import { ChevronLeft, ChevronRight } from './Icons';
 
 export function DateHeader({ date, onChange }: { date: string; onChange: (d: string) => void }) {

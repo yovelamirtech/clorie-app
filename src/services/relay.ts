@@ -1,6 +1,6 @@
 // Client for the retry relay (worker/): a small server that holds a provider request and keeps retrying it
 // until the API gives a final answer, so a request can wait out rate limits while the app is closed.
-import type { HttpRequest } from './ai';
+import type { HttpRequest } from '../ai';
 
 /** An upstream answer. status 0 = the relay couldn't get through to the API. */
 export type RelayReply = { status: number; body: string };

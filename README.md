@@ -39,13 +39,15 @@ npm run dev
 | `src/ai/gemini.ts` | כל הקוד של ספק ה-AI: קריאה ל-Gemini API, סכמת JSON, פענוח התשובה ומיפוי שגיאות |
 | `src/ai/food.ts` | חלק שלא תלוי בספק: ההנחיה, הודעת המשתמש, בדיקות תקינות וסוגי שגיאות |
 | `src/ai/index.ts` | בחירת הספק הפעיל (להחלפת ספק משנים רק כאן) |
-| `src/addFlow.ts` | זרימת ההוספה: תור בקשות שנשמר ב-IndexedDB, שליחה ← הבהרות ← שמירה / שגיאה |
-| `src/relay.ts` | לקוח לשרת הניסיונות החוזרים |
+| `src/hooks/` | הזרימות (React hooks): הוספה (`addFlow.ts` — תור בקשות שנשמר ב-IndexedDB, שליחה ← הבהרות ← שמירה / שגיאה), הצעת ארוחות (`suggestFlow.ts`), סיווג ארוחות במאגר (`mealClassifier.ts`) |
+| `src/services/relay.ts`, `src/services/relayJobs.ts` | לקוח לשרת הניסיונות החוזרים |
 | `worker/` | שרת הניסיונות החוזרים (Cloudflare Worker) |
-| `src/db.ts`, `src/store.tsx` | IndexedDB (דרך `idb-keyval`) ומצב האפליקציה |
-| `src/seed.ts` | המאגר ההתחלתי |
-| `src/perUnit.ts` | חישוב ערך ליחידה בהצעת "לשמור במאגר?" |
-| `src/backup.ts` | ייצוא, שחזור, מיזוג |
-| `src/components/` | המסכים והרכיבים |
+| `src/services/db.ts`, `src/store/store.tsx` | IndexedDB (דרך `idb-keyval`) ומצב האפליקציה |
+| `src/store/seed.ts` | המאגר ההתחלתי |
+| `src/services/backup.ts` | ייצוא, שחזור, מיזוג |
+| `src/utils/` | פונקציות עזר: תאריכים, ארוחות, עיצוב מספרים, חישוב ערך ליחידה (`perUnit.ts`) ועוד |
+| `src/screens/` | המסכים |
+| `src/components/` | הרכיבים |
+| `tests/` | בדיקות יחידה (Vitest, `npm test`) |
 
 המודל ברירת המחדל הוא `gemini-3.8-flash` (ניתן לשינוי בהגדרות). מפתח משיגים בחינם ב-[aistudio.google.com](https://aistudio.google.com/apikey). המפתח נשמר רק במכשיר ולא נכלל בגיבוי.

@@ -1,7 +1,7 @@
 // Google Gemini API provider. Everything Gemini-specific (endpoint, auth header, JSON schema format,
 // response parsing, error mapping) lives here, so another provider can replace this file.
 import type { Clarification, LibraryItem, MealType } from '../types';
-import { MEAL_TYPES, type MealHint } from '../meals';
+import { MEAL_TYPES, type MealHint } from '../utils/meals';
 import { CLASSIFY_PROMPT, buildClassifyMessage, validateClassification } from './classify';
 import {
   type MealOption,

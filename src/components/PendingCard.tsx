@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Question } from '../ai';
-import { dayLabel } from '../dates';
+import { dayLabel } from '../utils/dates';
 import type { Clarification, QueueItem } from '../types';
 
 type Loading = Extract<QueueItem, { phase: 'loading' }>;

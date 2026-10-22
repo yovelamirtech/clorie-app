@@ -1,4 +1,4 @@
-import type { LibraryItem } from './types';
+import type { LibraryItem } from '../types';
 
 // Stable ids, so a "merge" restore after a reset doesn't duplicate the starter items.
 const raw: Omit<LibraryItem, 'updatedAt'>[] = [

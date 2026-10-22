@@ -1,7 +1,7 @@
 import { createStore, get, set, setMany, clear } from 'idb-keyval';
-import type { AiJobs, Entry, LibraryItem, QueueItem, Settings } from './types';
-import { seedLibrary } from './seed';
-import { PROVIDER } from './ai';
+import type { AiJobs, Entry, LibraryItem, QueueItem, Settings } from '../types';
+import { seedLibrary } from '../store/seed';
+import { PROVIDER } from '../ai';
 
 // Default model comes from the active AI provider. Editable in settings.
 export const DEFAULT_MODEL = PROVIDER.defaultModel;

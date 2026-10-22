@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, buildRecommendRequestChain, parseRecommendResponse, recommendMeals, type RecommendRequest } from './ai';
-import { todayKey } from './dates';
-import type { MealBudget } from './meals';
-import { deleteJob, relayConfig } from './relay';
-import { describeRelayFailure, relayFailure, stepJob } from './relayJobs';
-import { useStore } from './store';
-import type { LibraryItem, MealType, SuggestMode, SuggestState } from './types';
-import { uid } from './util';
+import { AiError, buildRecommendRequestChain, parseRecommendResponse, recommendMeals, type RecommendRequest } from '../ai';
+import { todayKey } from '../utils/dates';
+import type { MealBudget } from '../utils/meals';
+import { deleteJob, relayConfig } from '../services/relay';
+import { describeRelayFailure, relayFailure, stepJob } from '../services/relayJobs';
+import { useStore } from '../store/store';
+import type { LibraryItem, MealType, SuggestMode, SuggestState } from '../types';
+import { uid } from '../utils/common';
 
 /** How often a request waiting on the relay is checked while the app is open. */
 const TICK_MS = 5000;

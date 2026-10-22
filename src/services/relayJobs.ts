@@ -1,7 +1,7 @@
 // Shared steps for AI requests that wait on the retry relay (worker/), so they survive closing the app.
-import { AiError, parseAnalyzeResponse, type HttpRequest } from './ai';
+import { AiError, parseAnalyzeResponse, type HttpRequest } from '../ai';
 import { RelayError, getJob, putJob, type RelayConfig, type RelayReply, type RelayStatus } from './relay';
-import type { RelayProgress } from './types';
+import type { RelayProgress } from '../types';
 
 /** The Hebrew message for a retryable failure the relay reported. */
 export function describeRelayFailure(last: RelayReply | undefined): string | undefined {

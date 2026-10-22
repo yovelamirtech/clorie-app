@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
-import { StoreProvider, useStore } from './store';
-import { useAddFlow } from './addFlow';
-import { useMealClassifier } from './mealClassifier';
-import { useSuggestFlow } from './suggestFlow';
-import { todayKey } from './dates';
+import { StoreProvider, useStore } from './store/store';
+import { useAddFlow } from './hooks/addFlow';
+import { useMealClassifier } from './hooks/mealClassifier';
+import { useSuggestFlow } from './hooks/suggestFlow';
+import { todayKey } from './utils/dates';
 import { PROVIDER } from './ai';
 import type { Tab } from './types';
 import { Gear } from './components/Icons';
 import { InstallBanner } from './components/InstallBanner';
-import { LibraryScreen } from './components/LibraryScreen';
-import { Onboarding } from './components/Onboarding';
-import { SettingsScreen } from './components/SettingsScreen';
-import { TodayScreen } from './components/TodayScreen';
-import { WeekScreen } from './components/WeekScreen';
+import { LibraryScreen } from './screens/LibraryScreen';
+import { Onboarding } from './screens/Onboarding';
+import { SettingsScreen } from './screens/SettingsScreen';
+import { TodayScreen } from './screens/TodayScreen';
+import { WeekScreen } from './screens/WeekScreen';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'today', label: 'היום' },

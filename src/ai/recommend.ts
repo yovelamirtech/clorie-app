@@ -1,7 +1,7 @@
 // Provider-neutral part of meal recommendations: prompt, user message and result validation.
 import type { LibraryItem, MealType } from '../types';
-import { MEAL_LABELS } from '../meals';
-import { round1 } from '../util';
+import { MEAL_LABELS } from '../utils/meals';
+import { round1 } from '../utils/common';
 import { invalid } from './food';
 
 export type RecommendRequest = {

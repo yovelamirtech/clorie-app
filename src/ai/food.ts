@@ -1,8 +1,8 @@
 // Provider-neutral part of the food analysis: errors, prompt, user message and result validation.
 // Provider-specific code (HTTP, auth, response format) lives in its own module, e.g. ./gemini.ts.
 import type { Clarification, LibraryItem, MealType } from '../types';
-import { MEAL_LABELS, isMealType, type MealHint } from '../meals';
-import { round1 } from '../util';
+import { MEAL_LABELS, isMealType, type MealHint } from '../utils/meals';
+import { round1 } from '../utils/common';
 
 export type AiErrorKind =
   | 'no_key'

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { useStore } from '../store';
-import { type Backup, exportBackup, mergeBackup, parseBackup, replaceWithBackup } from '../backup';
+import { useStore } from '../store/store';
+import { type Backup, exportBackup, mergeBackup, parseBackup, replaceWithBackup } from '../services/backup';
 import { ConfirmDialog, Dialog } from './Dialog';
 
 type ImportStep = { backup: Backup; confirmReplace: boolean } | null;

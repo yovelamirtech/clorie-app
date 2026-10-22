@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { useStore } from '../store';
-import { addDays, shortDate, todayKey, weekdayName } from '../dates';
-import { entryCalories, fmtInt, fmtSigned } from '../util';
+import { useStore } from '../store/store';
+import { addDays, shortDate, todayKey, weekdayName } from '../utils/dates';
+import { entryCalories, fmtInt, fmtSigned } from '../utils/common';
 
 export function WeekScreen({ onOpenDay }: { onOpenDay: (date: string) => void }) {
   const { entries, settings } = useStore();

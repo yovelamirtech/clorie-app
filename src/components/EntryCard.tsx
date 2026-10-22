@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Entry, EntryItem, LibraryItem } from '../types';
-import { useStore } from '../store';
-import { timeLabel } from '../dates';
-import { perUnitFrom } from '../perUnit';
-import { CALORIE_WARNING, entryCalories, fmt1, fmtInt, parseNum, round1 } from '../util';
+import { useStore } from '../store/store';
+import { timeLabel } from '../utils/dates';
+import { perUnitFrom } from '../utils/perUnit';
+import { CALORIE_WARNING, entryCalories, fmt1, fmtInt, parseNum, round1 } from '../utils/common';
 import { ConfirmDialog, Dialog } from './Dialog';
 import { LibraryItemForm, type LibraryDraft } from './LibraryItemForm';
 import { Book, Pencil, Trash, Warn } from './Icons';

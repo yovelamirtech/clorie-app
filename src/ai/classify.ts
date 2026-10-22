@@ -1,6 +1,6 @@
 // Provider-neutral part of sorting library items by meal: prompt, user message and result validation.
 import type { LibraryItem, MealType } from '../types';
-import { mealTypesFrom } from '../meals';
+import { mealTypesFrom } from '../utils/meals';
 import { invalid } from './food';
 
 export const CLASSIFY_PROMPT = `You sort the foods in the user's personal food library by the meals they are usually eaten at. The user lives in Israel and writes in Hebrew.

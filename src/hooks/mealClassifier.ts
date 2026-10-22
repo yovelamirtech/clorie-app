@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AiError, buildClassifyRequestChain, classifyMeals, parseClassifyResponse } from './ai';
-import { deleteJob, relayConfig } from './relay';
-import { describeRelayFailure, relayFailure, stepJob } from './relayJobs';
-import { useStore } from './store';
-import type { ClassifyJob, LibraryItem, MealType } from './types';
-import { uid } from './util';
+import { AiError, buildClassifyRequestChain, classifyMeals, parseClassifyResponse } from '../ai';
+import { deleteJob, relayConfig } from '../services/relay';
+import { describeRelayFailure, relayFailure, stepJob } from '../services/relayJobs';
+import { useStore } from '../store/store';
+import type { ClassifyJob, LibraryItem, MealType } from '../types';
+import { uid } from '../utils/common';
 
 /** Items per request, so a large library still fits comfortably in one answer. */
 const BATCH = 60;

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { OVER_TARGET_BUDGET, type MealOption } from '../ai';
-import { MEAL_LABELS, MEAL_TYPES, mealBudget, mealByTime, type MealBudget } from '../meals';
-import { useStore } from '../store';
-import type { SuggestFlow } from '../suggestFlow';
+import { MEAL_LABELS, MEAL_TYPES, mealBudget, mealByTime, type MealBudget } from '../utils/meals';
+import { useStore } from '../store/store';
+import type { SuggestFlow } from '../hooks/suggestFlow';
 import type { Entry, MealType } from '../types';
-import { relayWaitingText } from '../relayJobs';
-import { entryCalories, fmt1, fmtInt } from '../util';
+import { relayWaitingText } from '../services/relayJobs';
+import { entryCalories, fmt1, fmtInt } from '../utils/common';
 import { Dialog } from './Dialog';
 import { Book } from './Icons';
 

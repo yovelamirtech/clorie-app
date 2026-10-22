@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useStore } from '../store';
-import { DEFAULT_MODEL } from '../db';
+import { useStore } from '../store/store';
+import { DEFAULT_MODEL } from '../services/db';
 import { AiError, PROVIDER, testConnection } from '../ai';
-import { RelayError, cleanRelayUrl, relayConfig, testRelay } from '../relay';
-import { parseNum } from '../util';
-import { BackupSection } from './BackupSection';
+import { RelayError, cleanRelayUrl, relayConfig, testRelay } from '../services/relay';
+import { parseNum } from '../utils/common';
+import { BackupSection } from '../components/BackupSection';
 
 const maskKey = (k: string) => (k.length <= 4 ? '••••' : `••••••••${k.slice(-4)}`);
 

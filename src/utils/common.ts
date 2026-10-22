@@ -1,4 +1,4 @@
-import type { Entry, EntryItem } from './types';
+import type { Entry, EntryItem } from '../types';
 
 export const uid = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
