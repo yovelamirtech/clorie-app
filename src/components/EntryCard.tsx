@@ -160,6 +160,9 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
             ))}
           </ul>
           {entry.items.length === 0 && <div className="text-muted text-[0.85rem]">אין פריטים ברישום הזה.</div>}
+          {entry.computedLocally && (
+            <div className="flex items-center gap-1 mt-2 text-[0.8rem] text-muted"><Book size={12} /> חושב מהמאגר, בלי AI</div>
+          )}
           {addedNames.length > 0 && (
             <div className="flex items-center gap-1 mt-2 text-[0.8rem] text-muted"><Book size={12} /> נוסף למאגר: {addedNames.join(', ')}</div>
           )}
