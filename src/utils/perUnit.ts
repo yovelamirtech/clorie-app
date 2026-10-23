@@ -16,7 +16,7 @@ const WORD_AMOUNTS: [RegExp, number][] = (
 const STATE_WORDS = new Set(['יבש', 'יבשים', 'יבשה', 'יבשות', 'מבושל', 'מבושלים', 'מבושלת', 'מבושלות', 'מוכן', 'מוכנה']);
 
 // Plural → singular for common Hebrew portion words.
-const SINGULAR: Record<string, string> = {
+export const SINGULAR: Record<string, string> = {
   יחידות: 'יחידה',
   פרוסות: 'פרוסה',
   כפות: 'כף',
