@@ -69,7 +69,7 @@ export function useAddFlow() {
       const entry: Entry = {
         id: uid(),
         date,
-        createdAt: new Date().toISOString(),
+        createdAt,
         originalText: text,
         title: res.title,
         items,

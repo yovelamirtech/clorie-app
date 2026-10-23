@@ -205,6 +205,15 @@ describe('useAddFlow, direct to Gemini', () => {
     await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
     expect(hook.result.current.store.queue).toEqual([]);
   });
+
+  it('the entry keeps the time the message was sent, not when it was saved', async () => {
+    stubNetwork(() => gemini(okResult()));
+    const sent = new Date(Date.now() - 2 * 3600_000).toISOString();
+    const waiting: QueueItem = { id: 'q', text: 'ביצה', date: todayKey(), createdAt: sent, phase: 'loading', attempt: 'a1' };
+    const hook = await setup({}, [waiting]);
+    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
+    expect(hook.result.current.store.entries[0].createdAt).toBe(sent);
+  });
 });
 
 describe('useAddFlow, through the relay', () => {
