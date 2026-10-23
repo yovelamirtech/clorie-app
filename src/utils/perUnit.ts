@@ -1,13 +1,16 @@
 import { round1 } from './common';
 
 const UNICODE_FRACTIONS: Record<string, number> = { '½': 1 / 2, '¼': 1 / 4, '¾': 3 / 4, '⅓': 1 / 3, '⅔': 2 / 3 };
-const WORD_AMOUNTS: [RegExp, number][] = [
-  [/שלושת\s+רבעי/, 3 / 4],
-  [/שני\s+שליש/, 2 / 3],
-  [/חצי/, 1 / 2],
-  [/רבע/, 1 / 4],
-  [/שליש/, 1 / 3],
-];
+// Whole words only ("רבע" is also inside "ארבע", four), optionally with "ו" in front ("כוס וחצי", "2 וחצי").
+const WORD_AMOUNTS: [RegExp, number][] = (
+  [
+    ['שלוש(?:ת|ה)?\\s+רבע(?:י|ים)', 3 / 4],
+    ['שני\\s+שליש(?:י|ים)?', 2 / 3],
+    ['חצי', 1 / 2],
+    ['רבע', 1 / 4],
+    ['שליש', 1 / 3],
+  ] as const
+).map(([word, n]): [RegExp, number] => [new RegExp(`(?<![\\u05D0-\\u05EA])(ו)?(?:${word})(?![\\u05D0-\\u05EA])`), n]);
 
 // Preparation words worth keeping in a per-100g unit name ("100 גרם יבשים").
 const STATE_WORDS = new Set(['יבש', 'יבשים', 'יבשה', 'יבשות', 'מבושל', 'מבושלים', 'מבושלת', 'מבושלות', 'מוכן', 'מוכנה']);
@@ -43,17 +46,26 @@ export function parseAmount(q: string): { amount: number; rest: string } | null 
     const whole = m[1] ? Number(m[1].replace(',', '.')) : 0;
     return { amount: whole + UNICODE_FRACTIONS[m[2]], rest: s.replace(m[0], ' ') };
   }
-  m = s.match(/\d+(?:[.,]\d+)?/);
-  if (m) return { amount: Number(m[0].replace(',', '.')), rest: s.replace(m[0], ' ') };
-  for (const [re, n] of WORD_AMOUNTS) {
-    const w = s.match(re);
-    if (w) return { amount: n, rest: s.replace(w[0], ' ') };
+  const word = WORD_AMOUNTS.map(([re, n]) => ({ w: s.match(re), n })).find(({ w }) => w);
+  const num = /\d+(?:[.,]\d+)?/;
+  // "and a half" adds to the number ("2 וחצי", "2 כוסות וחצי"), or to one unit ("כוס וחצי").
+  if (word?.w?.[1]) {
+    const rest = s.replace(word.w[0], ' ');
+    m = rest.match(num);
+    return { amount: (m ? Number(m[0].replace(',', '.')) : 1) + word.n, rest: m ? rest.replace(m[0], ' ') : rest };
   }
+  m = s.match(num);
+  if (m) return { amount: Number(m[0].replace(',', '.')), rest: s.replace(m[0], ' ') };
+  if (word?.w) return { amount: word.n, rest: s.replace(word.w[0], ' ') };
   return null;
 }
 
 // "<number> <gram|ml>". \b is ASCII-only, so Hebrew word ends use an explicit lookahead.
 const MEASURE = /(\d+(?:[.,]\d+)?)\s*-?\s*(גרם|גר'|ג'|גר(?=[\s(),.]|$)|מ"ל|מ״ל|מיליליטר|מל(?=[\s(),.]|$))/;
+
+// The weight is for one unit, not the whole quantity: "2 יחידות של 50 גרם", "2 פרוסות (30 גרם כל אחת)".
+const EACH_BEFORE = /(?:^|\s)של\s*$/;
+const EACH_AFTER = /^\s*(?:כל\s+אח(?:ת|ד)|ליחידה|לפרוסה|לחתיכה)(?=[\s(),.]|$)/;
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').replace(/^[\s\-–~כ]+(?=\s|$)/, '').trim();
 
@@ -65,7 +77,13 @@ export function perUnitFrom(quantity: string, calories: number, protein: number)
   // An explicit weight/volume ("330 גרם", "¾ כוס (180 מ"ל)") wins over counted units → per 100.
   const measure = quantity.match(MEASURE);
   if (measure && Number(measure[1].replace(',', '.')) > 0) {
-    const amount = Number(measure[1].replace(',', '.'));
+    let amount = Number(measure[1].replace(',', '.'));
+    const at = measure.index ?? 0;
+    const before = quantity.slice(0, at);
+    if (EACH_BEFORE.test(before) || EACH_AFTER.test(quantity.slice(at + measure[0].length))) {
+      const count = parseAmount(before)?.amount ?? 1;
+      if (count > 0) amount *= count;
+    }
     const base = measure[2].startsWith('ג') ? '100 גרם' : '100 מ"ל';
     const extra = quantity.split(/[\s(),.]+/).filter((w) => STATE_WORDS.has(w)).join(' ');
     const f = 100 / amount;
