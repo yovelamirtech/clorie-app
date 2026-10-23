@@ -1,0 +1,11 @@
+{
+  // Type-checks the Worker tests against the Worker's types. They run with the app's Vitest, so vitest
+  // and @types/node come from the root node_modules: `npx tsc -p worker/tsconfig.tests.json` from the root.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "typeRoots": ["../node_modules/@types"],
+    "paths": { "vitest": ["../node_modules/vitest"] }
+  },
+  "include": ["src", "tests", "worker-configuration.d.ts"]
+}
