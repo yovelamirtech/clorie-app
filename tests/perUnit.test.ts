@@ -97,6 +97,29 @@ describe('perUnitFrom', () => {
     expect(perUnitFrom('1½ כוס', 300, 6)).toEqual({ unit: 'כוס', caloriesPerUnit: 200, proteinPerUnit: 4 });
   });
 
+  it('multiplies a weight given for one unit by the count', () => {
+    expect(perUnitFrom('2 יחידות של 50 גרם', 200, 10)).toEqual({ unit: '100 גרם', caloriesPerUnit: 200, proteinPerUnit: 10 });
+    expect(perUnitFrom('2 פרוסות (30 גרם כל אחת)', 150, 6).caloriesPerUnit).toBe(250);
+    expect(perUnitFrom('3 יחידות (40 גרם ליחידה)', 240, 12).caloriesPerUnit).toBe(200);
+    expect(perUnitFrom('חצי חבילה של 200 גרם', 250, 10).caloriesPerUnit).toBe(250);
+  });
+
+  it('a weight with "של" and no count is the whole quantity', () => {
+    expect(perUnitFrom('חבילה של 200 גרם', 500, 20).caloriesPerUnit).toBe(250);
+  });
+
+  it('a weight in parentheses without "each" is the total', () => {
+    expect(perUnitFrom('2 פרוסות (60 גרם)', 150, 6).caloriesPerUnit).toBe(250);
+  });
+
+  it('turns "כוס וחצי" into per cup', () => {
+    expect(perUnitFrom('כוס וחצי', 300, 6)).toEqual({ unit: 'כוס', caloriesPerUnit: 200, proteinPerUnit: 4 });
+  });
+
+  it('a number word it can\'t read keeps the whole quantity as one unit', () => {
+    expect(perUnitFrom('ארבע פרוסות', 200, 10)).toEqual({ unit: 'ארבע פרוסות', caloriesPerUnit: 200, proteinPerUnit: 10 });
+  });
+
   it('a number with no unit word becomes "יחידה"', () => {
     expect(perUnitFrom('2', 200, 4).unit).toBe('יחידה');
   });
@@ -108,5 +131,41 @@ describe('perUnitFrom', () => {
 
   it('a zero amount does not divide by zero', () => {
     expect(perUnitFrom('0 גרם', 100, 1)).toEqual({ unit: '0 גרם', caloriesPerUnit: 100, proteinPerUnit: 1 });
+  });
+});
+
+describe('parseAmount: Hebrew words', () => {
+  it('does not read "ארבע" (four) as "רבע" (a quarter)', () => {
+    expect(parseAmount('ארבע פרוסות')).toBeNull();
+    expect(parseAmount('ארבעה כפות')).toBeNull();
+  });
+
+  it('matches word amounts only as whole words', () => {
+    expect(parseAmount('רבע עוף')?.amount).toBe(0.25);
+    expect(parseAmount('שליש כוס')?.amount).toBeCloseTo(1 / 3);
+    expect(parseAmount('שני שלישים כוס')?.amount).toBeCloseTo(2 / 3);
+    expect(parseAmount('שלושה רבעים כוס')?.amount).toBe(0.75);
+  });
+
+  it('adds "וחצי" to the number before it', () => {
+    const result = parseAmount('2 וחצי פרוסות');
+
+    expect(result?.amount).toBe(2.5);
+    expect(result?.rest.trim()).toBe('פרוסות');
+  });
+
+  it('adds "וחצי" after the unit to the number', () => {
+    expect(parseAmount('2 כוסות וחצי')?.amount).toBe(2.5);
+  });
+
+  it('reads "כוס וחצי" as one and a half', () => {
+    const result = parseAmount('כוס וחצי');
+
+    expect(result?.amount).toBe(1.5);
+    expect(result?.rest.trim()).toBe('כוס');
+  });
+
+  it('reads "ורבע" the same way', () => {
+    expect(parseAmount('כוס ורבע')?.amount).toBe(1.25);
   });
 });
