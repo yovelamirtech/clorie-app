@@ -21,6 +21,12 @@ describe('seedLibrary', () => {
     }
   });
 
+  it('the branded schnitzel has no generic aliases, so a plain "שניצל" is not taken for it', () => {
+    const schnitzel = lib.find((i) => i.id === 'seed-schnitzel');
+    expect(schnitzel?.aliases).not.toContain('שניצל קטן');
+    expect(schnitzel?.aliases).not.toContain('שניצלים קטנים');
+  });
+
   it('returns a fresh copy each time', () => {
     expect(seedLibrary()[0]).not.toBe(seedLibrary()[0]);
   });
