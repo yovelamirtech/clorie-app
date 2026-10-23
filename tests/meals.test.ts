@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { isMealType, learnMealType, mealBudget, mealByTime, mealHintFor, mealTypesFrom } from '../src/utils/meals';
+import { isMealType, learnMealType, mealBudget, mealByTime, mealHintFor, mealTypesFrom, withoutMealPrefix } from '../src/utils/meals';
 import type { LibraryItem, MealType } from '../src/types';
 
 const at = (h: number, m: number) => new Date(2026, 9, 22, h, m);
@@ -115,5 +115,19 @@ describe('mealBudget', () => {
 
   it('rounds to 10', () => {
     expect(mealBudget('breakfast', 1234, none).calories).toBe(370);
+  });
+});
+
+describe('withoutMealPrefix', () => {
+  it('drops a leading meal name', () => {
+    expect(withoutMealPrefix('ארוחת בוקר: חביתה ולחם')).toBe('חביתה ולחם');
+    expect(withoutMealPrefix('ארוחת צהרים - אורז וחומוס')).toBe('אורז וחומוס');
+    expect(withoutMealPrefix('נשנוש: תפוח')).toBe('תפוח');
+  });
+
+  it('keeps titles without one, and a title that is only the meal name', () => {
+    expect(withoutMealPrefix(' חביתה ולחם ')).toBe('חביתה ולחם');
+    expect(withoutMealPrefix('ארוחת ערב')).toBe('ארוחת ערב');
+    expect(withoutMealPrefix('ארוחת ערב:')).toBe('ארוחת ערב:');
   });
 });

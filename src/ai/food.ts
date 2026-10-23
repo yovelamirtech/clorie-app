@@ -1,7 +1,7 @@
 // Provider-neutral part of the food analysis: errors, prompt, user message and result validation.
 // Provider-specific code (HTTP, auth, response format) lives in its own module, e.g. ./gemini.ts.
 import type { Clarification, LibraryItem, MealType } from '../types';
-import { MEAL_LABELS, isMealType, type MealHint } from '../utils/meals';
+import { MEAL_LABELS, isMealType, withoutMealPrefix, type MealHint } from '../utils/meals';
 import { round1 } from '../utils/common';
 
 export type AiErrorKind =
@@ -109,7 +109,7 @@ Meal type
 - When no time is given (the entry is for another day), infer the meal from the food itself.
 
 Output
-- title: a short Hebrew title of up to 5 words describing the meal (e.g. "ארוחת צהריים: אורז וחומוס", "חביתה ולחם").
+- title: a short Hebrew title of up to 5 words naming only the foods, without the meal (e.g. "אורז וחומוס", "חביתה ולחם", not "ארוחת צהריים: אורז וחומוס").
 - calories: whole numbers. protein: grams, one decimal place.
 - All user-facing text in Hebrew.`;
 
@@ -196,7 +196,7 @@ export function validateResult(input: unknown, library: LibraryItem[]): FoodResu
         ...(newLibraryItem ? { newLibraryItem } : {}),
       };
     });
-    const title = isStr(o.title) && o.title.trim() ? o.title.trim() : items.map((i) => i.name).slice(0, 3).join(', ');
+    const title = isStr(o.title) && o.title.trim() ? withoutMealPrefix(o.title) : items.map((i) => i.name).slice(0, 3).join(', ');
     return { status: 'ok', title, items, ...(isMealType(o.mealType) ? { mealType: o.mealType } : {}) };
   }
 

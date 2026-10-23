@@ -40,6 +40,14 @@ export function learnMealType(library: LibraryItem[], ids: Set<string>, meal: Me
   });
 }
 
+const MEAL_PREFIX = /^\s*(?:ארוחת\s+(?:בוקר|צהריים|צהרים|ערב|ביניים)|נשנוש)\s*[:\-–—]\s*/;
+
+/** A title without a leading meal name: "ארוחת בוקר: חביתה ולחם" → "חביתה ולחם". */
+export function withoutMealPrefix(title: string): string {
+  const rest = title.replace(MEAL_PREFIX, '').trim();
+  return rest || title.trim();
+}
+
 /** What the time a message was sent says about its meal; null when the entry is for another day. */
 export type MealHint = { time: string; meal: MainMeal } | null;
 
