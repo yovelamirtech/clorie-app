@@ -51,6 +51,11 @@ describe('validateResult: ok', () => {
     expect(res.status === 'ok' && res.items[0].libraryItemId).toBeUndefined();
   });
 
+  it('drops a meal name from the start of the title', () => {
+    const res = validateResult({ status: 'ok', title: 'ארוחת צהריים: אורז וחומוס', items: [{ name: 'x', calories: 1, protein: 0 }] }, lib);
+    expect(res.status === 'ok' && res.title).toBe('אורז וחומוס');
+  });
+
   it('builds a title from the item names when it is missing', () => {
     const items = ['א', 'ב', 'ג', 'ד'].map((name) => ({ name, calories: 1, protein: 0 }));
     const res = validateResult({ status: 'ok', title: ' ', items }, lib);

@@ -3,6 +3,7 @@ import type { Entry, EntryItem, LibraryItem } from '../types';
 import { useStore } from '../store/store';
 import { timeLabel } from '../utils/dates';
 import { perUnitFrom } from '../utils/perUnit';
+import { withoutMealPrefix } from '../utils/meals';
 import { CALORIE_WARNING, entryCalories, fmt1, fmtInt, parseNum, round1 } from '../utils/common';
 import { ConfirmDialog, Dialog } from './Dialog';
 import { LibraryItemForm, type LibraryDraft } from './LibraryItemForm';
@@ -122,6 +123,8 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
   };
 
   const total = entryCalories(entry);
+  // Older entries' titles may still start with the meal ("ארוחת בוקר: ...").
+  const title = withoutMealPrefix(entry.title);
   // Items deleted from the library since then aren't listed.
   const addedNames = entry.items.flatMap((i) => {
     const lib = i.addedToLibrary ? library.find((l) => l.id === i.libraryItemId) : undefined;
@@ -131,7 +134,7 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
   return (
     <div ref={ref} className={`bg-surface border border-border rounded-app shadow-app overflow-hidden transition-colors duration-[0.6s] ease-in-out ${highlight ? 'bg-flash' : ''}`}>
       <button className="flex items-baseline gap-2.5 w-full border-0 bg-transparent px-3.5 py-[13px] text-start cursor-pointer" onClick={onToggle} aria-expanded={expanded}>
-        <span className="flex-1 font-medium min-w-0">{entry.title}</span>
+        <span className="flex-1 font-medium min-w-0">{title}</span>
         <span className="num text-faint text-[0.85rem]">{timeLabel(entry.createdAt)}</span>
         <span className="num font-semibold min-w-[3.2em] text-end">{fmtInt(total)}</span>
       </button>
@@ -171,7 +174,7 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
       {confirmDelete && (
         <ConfirmDialog
           title="למחוק את הרישום?"
-          message={`"${entry.title}" (${fmtInt(total)} קלוריות) יימחק.`}
+          message={`"${title}" (${fmtInt(total)} קלוריות) יימחק.`}
           confirmLabel="מחיקה"
           danger
           onCancel={() => setConfirmDelete(false)}
