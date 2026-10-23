@@ -8,6 +8,8 @@ import { Composer } from '../components/Composer';
 import { DateHeader } from '../components/DateHeader';
 import { DaySummary } from '../components/DaySummary';
 import { EntryCard } from '../components/EntryCard';
+import { Plus } from '../components/Icons';
+import { ManualEntryForm } from '../components/ManualEntryForm';
 import { MealSuggest } from '../components/MealSuggest';
 import { PendingCard } from '../components/PendingCard';
 
@@ -19,9 +21,10 @@ type Props = {
 };
 
 export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
-  const { entries, settings } = useStore();
+  const { entries, settings, actions } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [addingManual, setAddingManual] = useState(false);
 
   const dayEntries = useMemo(
     () => entries.filter((e) => e.date === date).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
@@ -78,7 +81,24 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
             <p className="text-text italic !mt-2">2 פרוסות לחם לבן עם כף גדושה חמאת בוטנים, וחצי גביע קוטג׳ 5%</p>
           </div>
         )}
+
+        <button className="btn self-center text-muted" onClick={() => setAddingManual(true)}>
+          <Plus size={18} /> הוסף רישום
+        </button>
       </div>
+
+      {addingManual && (
+        <ManualEntryForm
+          date={date}
+          onCancel={() => setAddingManual(false)}
+          onSubmit={(entry) => {
+            actions.addEntry(entry);
+            setAddingManual(false);
+            setExpandedId(entry.id);
+            setFlashId(entry.id);
+          }}
+        />
+      )}
 
       <Composer value={flow.draft} onChange={flow.setDraft} onSend={() => flow.send(date)} />
     </div>
