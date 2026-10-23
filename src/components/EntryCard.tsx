@@ -138,7 +138,7 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
 
       {expanded && (
         <div className="px-3.5 pb-3 border-t border-border">
-          <div className="mt-2.5 text-muted text-[0.85rem] whitespace-pre-wrap">{entry.originalText}</div>
+          {entry.originalText && <div className="mt-2.5 text-muted text-[0.85rem] whitespace-pre-wrap">{entry.originalText}</div>}
           {entry.clarifications?.length ? (
             <ul className="m-0 mt-1.5 p-0 list-none text-[0.8rem] text-muted [&_b]:font-medium [&_b]:text-text">
               {entry.clarifications.map((c, i) => (
