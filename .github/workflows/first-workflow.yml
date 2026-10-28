@@ -3,14 +3,17 @@ name: first-workflow
 on: push
 
 jobs:
-  smoke-check:
+  test-code:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v3
         with:
           node-version: 24
-      - run: ls
-      - run: echo "hi there"
       - run: npm install
       - run: npm test
+  deploy-to-prod:
+    needs: test-code
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "deployed to prod"
