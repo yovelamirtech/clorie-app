@@ -12,3 +12,5 @@ jobs:
           node-version: 24
       - run: ls
       - run: echo "hi there"
+      - run: npm install
+      - run: npm test
