@@ -36,6 +36,7 @@ describe('cleanRelayUrl / relayConfig', () => {
     ['https://relay.x.workers.dev זו הכתובת', 'https://relay.x.workers.dev'],
     ['', ''],
     ['   ', ''],
+    ['https://[not-a-host', 'https://[not-a-host'],
   ])('"%s" → "%s"', (input, out) => {
     expect(cleanRelayUrl(input)).toBe(out);
   });
@@ -103,6 +104,15 @@ describe('relay client', () => {
     await expect(testRelay(relay)).resolves.toBeUndefined();
     stubFetch(json({ service: 'something-else' }));
     await expect(testRelay(relay)).rejects.toMatchObject({ kind: 'rejected' });
+    stubFetch(new Response('<html>'));
+    await expect(testRelay(relay)).rejects.toMatchObject({ kind: 'rejected' });
+  });
+
+  it('does not try the network while the device is offline', async () => {
+    const calls = stubFetch();
+    vi.stubGlobal('navigator', { onLine: false });
+    await expect(getJob(relay, 'id')).rejects.toMatchObject({ kind: 'unreachable', message: 'offline' });
+    expect(calls).toEqual([]);
   });
 });
 
@@ -130,6 +140,11 @@ describe('relay failures', () => {
     expect(describeRelayFailure({ status: 0, body: '' })).toBe('השרת לא הצליח להגיע לשירות ה-AI.');
     expect(describeRelayFailure({ status: 429, body: '' })).toBe(new AiError('rate_limit', '', 'עברת את מגבלת השכבה החינמית של Gemini. כדאי לנסות שוב בעוד דקה.').message);
     expect(describeRelayFailure({ status: 503, body: '' })).toBe(new AiError('overloaded').message);
+  });
+
+  it('describeRelayFailure has nothing to say about an answer that is not an error', () => {
+    const ok = JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ status: 'ok', title: 'ביצה', items: [{ name: 'ביצה', quantity: '1', calories: 73, protein: 6.3 }] }) }] } }] });
+    expect(describeRelayFailure({ status: 200, body: ok })).toBeUndefined();
   });
 
   it('relayWaitingText', () => {

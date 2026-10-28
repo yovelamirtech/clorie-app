@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { buildBackup, mergeBackup, parseBackup, replaceWithBackup, type Backup } from '../src/services/backup';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { buildBackup, exportBackup, mergeBackup, parseBackup, replaceWithBackup, type Backup } from '../src/services/backup';
 import type { AppData } from '../src/services/db';
 import type { Entry, LibraryItem, Settings } from '../src/types';
 
@@ -152,5 +152,61 @@ describe('replaceWithBackup', () => {
     expect(replaceWithBackup(data(), backup({ provider: 'claude' })).settings.model).toBe('gemini-3.8-flash');
     expect(replaceWithBackup(data(), backup({})).settings.model).toBe('gemini-3.8-flash');
     expect(replaceWithBackup(data(), backup({ provider: 'gemini', model: '' })).settings.model).toBe('gemini-3.8-flash');
+  });
+});
+
+describe('exportBackup', () => {
+  // The node test environment has no DOM or share sheet; stand-ins record what the export does with them.
+  function stubBrowser(share?: (data: { files: File[] }) => Promise<void>) {
+    const link = { href: '', download: '', click: vi.fn(), remove: vi.fn() };
+    const appendChild = vi.fn();
+    vi.stubGlobal('document', { createElement: () => link, body: { appendChild } });
+    vi.stubGlobal('navigator', share ? { canShare: () => true, share: vi.fn(share) } : {});
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:backup');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    return { link, appendChild, revoke };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('shares the backup as a JSON file without the secrets', async () => {
+    let shared: File | undefined;
+    const { link } = stubBrowser(async ({ files }) => void (shared = files[0]));
+    expect(await exportBackup(data())).toBe('shared');
+    expect(shared?.name).toMatch(/^calories-backup-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(shared?.type).toBe('application/json');
+    const text = await shared!.text();
+    expect(text).not.toContain('secret');
+    expect(parseBackup(text).entries).toEqual(data().entries);
+    expect(link.click).not.toHaveBeenCalled();
+  });
+
+  it('closing the share sheet is a cancel, not a download', async () => {
+    const { link } = stubBrowser(() => Promise.reject(new DOMException('cancelled', 'AbortError')));
+    expect(await exportBackup(data())).toBe('cancelled');
+    expect(link.click).not.toHaveBeenCalled();
+  });
+
+  it('downloads the file when sharing fails', async () => {
+    const { link } = stubBrowser(() => Promise.reject(new DOMException('denied', 'NotAllowedError')));
+    expect(await exportBackup(data())).toBe('downloaded');
+    expect(link.click).toHaveBeenCalledOnce();
+  });
+
+  it('downloads the file where files cannot be shared, then frees the URL', async () => {
+    vi.useFakeTimers();
+    const { link, appendChild, revoke } = stubBrowser();
+    expect(await exportBackup(data())).toBe('downloaded');
+    expect(link).toMatchObject({ href: 'blob:backup', download: expect.stringMatching(/^calories-backup-.+\.json$/) });
+    expect(appendChild).toHaveBeenCalledWith(link);
+    expect(link.click).toHaveBeenCalledOnce();
+    expect(link.remove).toHaveBeenCalledOnce();
+    expect(revoke).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1000);
+    expect(revoke).toHaveBeenCalledWith('blob:backup');
   });
 });
