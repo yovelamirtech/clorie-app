@@ -1,0 +1,10 @@
+name: first-workflow
+
+on: push
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 1s
+      - run: echo "hi there"
