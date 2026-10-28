@@ -56,7 +56,10 @@ async function send(hook: Hook, text: string, date = todayKey()) {
 }
 
 beforeEach(() => kv.clear());
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 describe('useAddFlow, direct to Gemini', () => {
   it('turns a message into an entry', async () => {
@@ -206,6 +209,22 @@ describe('useAddFlow, direct to Gemini', () => {
     expect(hook.result.current.store.queue).toEqual([]);
   });
 
+  it('retry only applies to error cards, answer only to questions', async () => {
+    const calls = stubNetwork(() => gemini(okResult()));
+    const createdAt = new Date().toISOString();
+    const hook = await setup({}, [
+      { id: 'q', text: 'ביצה', date: todayKey(), createdAt, phase: 'clarify', questions: question.questions },
+      { id: 'e', text: 'סלט', date: todayKey(), createdAt, phase: 'error', error: { kind: 'invalid', message: 'x' } },
+    ]);
+    act(() => hook.result.current.flow.retry('q'));
+    act(() => hook.result.current.flow.answer('e', [{ question: 'בשמן?', answer: 'כן' }]));
+    act(() => hook.result.current.flow.cancel('missing'));
+    await act(async () => {});
+    expect(calls).toEqual([]);
+    expect(hook.result.current.store.queue.map((x) => x.phase)).toEqual(['clarify', 'error']);
+    expect(hook.result.current.flow.draft).toBe('');
+  });
+
   it('the entry keeps the time the message was sent, not when it was saved', async () => {
     stubNetwork(() => gemini(okResult()));
     const sent = new Date(Date.now() - 2 * 3600_000).toISOString();
@@ -310,6 +329,63 @@ describe('useAddFlow, through the relay', () => {
     await waitFor(() => expect(hook.result.current.store.queue[0]?.phase).toBe('error'));
     const card = hook.result.current.store.queue[0];
     expect(card.phase === 'error' && card.error).toMatchObject({ kind: 'auth', message: expect.stringContaining('הסיסמה') });
+  });
+
+  it('a request the relay refuses is an error card', async () => {
+    stubNetwork(() => json({ error: 'bad body' }, 400));
+    const hook = await setup(relaySettings);
+    await send(hook, 'ביצה');
+    await waitFor(() => expect(hook.result.current.store.queue[0]?.phase).toBe('error'));
+    const card = hook.result.current.store.queue[0];
+    expect(card.phase === 'error' && card.error).toMatchObject({ kind: 'bad_request', message: 'שרת הניסיונות החוזרים דחה את הבקשה.', detail: 'bad body' });
+  });
+
+  it('sends an offline card once the connection is back', async () => {
+    let offline = true;
+    stubNetwork(() => {
+      if (offline) throw new TypeError('Failed to fetch');
+      return json({ state: 'queued', attempts: 0, nextAttemptAt: Date.now() + 60_000 });
+    });
+    const hook = await setup(relaySettings);
+    await send(hook, 'ביצה');
+    await waitFor(() => {
+      const card = hook.result.current.store.queue[0];
+      expect(card?.phase === 'loading' && card.relay?.offline).toBe(true);
+    });
+
+    offline = false;
+    goOnline();
+    await waitFor(() => {
+      const card = hook.result.current.store.queue[0];
+      expect(card?.phase === 'loading' && card.relay).toEqual({ accepted: true, attempts: 0, nextAttemptAt: expect.any(Number) });
+    });
+  });
+
+  it('checks on waiting requests when the app comes back to the foreground', async () => {
+    const calls = stubNetwork((c) => (c.method === 'GET' ? json({ state: 'done', attempts: 1, status: 200, body: geminiBody(okResult()) }) : new Response(null, { status: 204 })));
+    // Hooks from earlier tests are still mounted and hear the same events; look only at this job.
+    const asked = () => calls.filter((c) => c.url === `${RELAY_URL}/jobs/a1`);
+    const waiting: QueueItem = {
+      id: 'q', text: 'ביצה', date: todayKey(), createdAt: new Date().toISOString(), phase: 'loading', attempt: 'a1',
+      relay: { accepted: true, attempts: 1, nextAttemptAt: Date.now() + 60_000 },
+    };
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    const hook = await setup(relaySettings, [waiting]);
+    // The relay's next attempt is still a minute away, so opening the app doesn't ask about it yet.
+    await act(async () => {});
+    expect(asked()).toEqual([]);
+
+    // A minute later the user switches back to the app.
+    const later = Date.now() + 70_000;
+    vi.spyOn(Date, 'now').mockReturnValue(later);
+    act(() => void document.dispatchEvent(new Event('visibilitychange')));
+    await act(async () => {});
+    expect(asked()).toEqual([]);
+
+    visibility.mockReturnValue('visible');
+    act(() => void document.dispatchEvent(new Event('visibilitychange')));
+    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
+    expect(asked()[0]).toMatchObject({ method: 'GET' });
   });
 
   it('cancelling a waiting request withdraws it from the relay', async () => {

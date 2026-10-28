@@ -136,6 +136,68 @@ describe('useSuggestFlow, through the relay', () => {
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
   });
 
+  /** A relay that keeps the job waiting for a minute; DELETEs succeed. */
+  const waitingRelay = () =>
+    stubNetwork((c) => {
+      if (c.method === 'GET') return json({}, 404);
+      if (c.method === 'PUT') return json({ state: 'queued', attempts: 0, nextAttemptAt: Date.now() + 60_000 });
+      return new Response(null, { status: 204 });
+    });
+
+  it('an answer that is not valid becomes an error', async () => {
+    stubNetwork((c) => (c.method === 'GET' ? json({}, 404) : c.method === 'PUT' ? json({ state: 'done', attempts: 1, status: 200, body: 'nope' }) : new Response(null, { status: 204 })));
+    const hook = await setup(relaySettings);
+    await act(() => hook.result.current.flow.request('dinner', 'new', ctx));
+    await waitFor(() => expect(hook.result.current.flow.state?.error).toMatchObject({ mode: 'new', message: expect.any(String) }));
+    expect(hook.result.current.flow.state?.job).toBeUndefined();
+    expect(hook.result.current.flow.state?.options).toEqual([]);
+    expect(hook.result.current.flow.loading).toBeNull();
+  });
+
+  it('a wrong relay password ends the request with an error', async () => {
+    stubNetwork(() => json({ error: 'unauthorized' }, 401));
+    const hook = await setup(relaySettings);
+    await act(() => hook.result.current.flow.request('dinner', 'library', ctx));
+    await waitFor(() => expect(hook.result.current.flow.state?.error).toMatchObject({ mode: 'library', message: expect.stringContaining('הסיסמה') }));
+    expect(hook.result.current.flow.state?.job).toBeUndefined();
+  });
+
+  it('keeps the job, marked offline, when the relay cannot be reached', async () => {
+    stubNetwork(() => {
+      throw new TypeError('Failed to fetch');
+    });
+    const hook = await setup(relaySettings);
+    await act(() => hook.result.current.flow.request('dinner', 'library', ctx));
+    await waitFor(() => expect(hook.result.current.flow.state?.job?.relay).toMatchObject({ accepted: false, offline: true }));
+    expect(hook.result.current.flow.state?.error).toBeUndefined();
+    expect(hook.result.current.flow.loading).toBe('library');
+  });
+
+  it('"clear" withdraws a waiting job from the relay', async () => {
+    const calls = waitingRelay();
+    const hook = await setup(relaySettings);
+    await act(() => hook.result.current.flow.request('dinner', 'library', ctx));
+    await waitFor(() => expect(hook.result.current.flow.state?.job?.relay?.accepted).toBe(true));
+    const jobId = hook.result.current.flow.state?.job?.id;
+
+    act(() => hook.result.current.flow.clear());
+    expect(hook.result.current.flow.state).toBeUndefined();
+    expect(hook.result.current.flow.loading).toBeNull();
+    await waitFor(() => expect(calls).toContainEqual(expect.objectContaining({ method: 'DELETE', url: `${RELAY_URL}/jobs/${jobId}` })));
+  });
+
+  it('asking again for the same meal withdraws the job that was waiting', async () => {
+    const calls = waitingRelay();
+    const hook = await setup(relaySettings);
+    await act(() => hook.result.current.flow.request('dinner', 'library', ctx));
+    await waitFor(() => expect(hook.result.current.flow.state?.job?.relay?.accepted).toBe(true));
+    const first = hook.result.current.flow.state?.job?.id;
+
+    await act(() => hook.result.current.flow.request('dinner', 'library', ctx));
+    await waitFor(() => expect(calls).toContainEqual(expect.objectContaining({ method: 'DELETE', url: `${RELAY_URL}/jobs/${first}` })));
+    expect(hook.result.current.flow.state?.job?.id).not.toBe(first);
+  });
+
   it('a waiting job whose relay was removed becomes an error', async () => {
     stubNetwork(() => json({}, 500));
     const waiting = {

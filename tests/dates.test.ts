@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { addDays, dayLabel, fromDateKey, shortDate, toDateKey, todayKey } from '../src/utils/dates';
+import { addDays, dayLabel, fromDateKey, shortDate, timeLabel, toDateKey, todayKey, weekdayName } from '../src/utils/dates';
 
 describe('date keys', () => {
   it('toDateKey pads month and day', () => {
@@ -53,5 +53,15 @@ describe('relative labels', () => {
 
   it('shortDate is day.month', () => {
     expect(shortDate('2026-10-05')).toBe('5.10');
+  });
+
+  it('weekdayName is the full Hebrew day name', () => {
+    expect(weekdayName('2026-10-22')).toBe('יום חמישי');
+    expect(weekdayName('2026-10-24')).toBe('יום שבת');
+  });
+
+  it('timeLabel is the local 24-hour time', () => {
+    expect(timeLabel(new Date(2026, 9, 22, 8, 5).toISOString())).toBe('08:05');
+    expect(timeLabel(new Date(2026, 9, 22, 21, 40).toISOString())).toBe('21:40');
   });
 });

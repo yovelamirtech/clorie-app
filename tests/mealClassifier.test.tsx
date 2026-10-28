@@ -141,6 +141,32 @@ describe('useMealClassifier, through the relay', () => {
     expect(hook.result.current.classifier.job?.itemIds).toEqual(['a']);
   });
 
+  it('marks the job offline when the relay cannot be reached', async () => {
+    stubNetwork(() => {
+      throw new TypeError('Failed to fetch');
+    });
+    const hook = await setup([item('a')], relaySettings);
+    await waitFor(() => expect(hook.result.current.classifier.job?.relay).toMatchObject({ accepted: false, offline: true }));
+    expect(hook.result.current.classifier.status).toEqual({ kind: 'idle' });
+    expect(hook.result.current.store.library[0].mealTypes).toBeUndefined();
+  });
+
+  it('an answer that is not valid is a failure', async () => {
+    stubNetwork((c) => (c.method === 'GET' ? json({}, 404) : c.method === 'PUT' ? json({ state: 'done', attempts: 1, status: 200, body: 'nope' }) : new Response(null, { status: 204 })));
+    const hook = await setup([item('a')], relaySettings);
+    await waitFor(() => expect(hook.result.current.classifier.status.kind).toBe('failed'));
+    expect(hook.result.current.store.jobs.classify).toBeUndefined();
+    expect(hook.result.current.store.library[0].mealTypes).toBeUndefined();
+  });
+
+  it('drops a job saved while a relay was set, once the relay is removed', async () => {
+    const calls = stubNetwork(() => json({}, 500));
+    kv.set('jobs', { classify: { id: 'job-1', itemIds: ['a'], relay: { accepted: true, attempts: 1 } } });
+    const hook = await setup([item('a')]);
+    await waitFor(() => expect(hook.result.current.store.jobs.classify).toBeUndefined());
+    expect(calls).toEqual([]);
+  });
+
   it('a relay that refuses the password ends in a failure', async () => {
     stubNetwork(() => json({}, 401));
     const hook = await setup([item('a')], relaySettings);
