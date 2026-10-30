@@ -49,7 +49,7 @@ export type Entry = {
   items: EntryItem[];
   clarifications?: Clarification[];
   mealType?: MealType; // not shown in the diary; feeds the library's meal types
-  computedLocally?: boolean; // worked out from the library alone, without the AI
+  computedLocally?: boolean; // worked out from the library alone, without the AI (older entries only)
 };
 
 /** Relay progress of a queued request. */
