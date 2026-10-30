@@ -235,46 +235,16 @@ describe('useAddFlow, direct to Gemini', () => {
   });
 });
 
-describe('useAddFlow, from the library alone', () => {
+describe('useAddFlow, with library foods', () => {
   const potato: LibraryItem = { id: 'potato', name: 'תפוחי אדמה', aliases: [], unit: '100 גרם', caloriesPerUnit: 77, proteinPerUnit: 2, mealTypes: ['lunch'], updatedAt: '' };
 
-  it('works out a message made only of library foods without calling the AI', async () => {
-    const calls = stubNetwork(() => gemini(okResult()));
-    const hook = await setup({ apiKey: '' }, [], [potato]);
-    await send(hook, '300 גרם תפוחי אדמה');
-    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
-    const [entry] = hook.result.current.store.entries;
-    expect(entry).toMatchObject({ originalText: '300 גרם תפוחי אדמה', title: 'תפוחי אדמה', computedLocally: true });
-    expect(entry.items[0]).toMatchObject({ calories: 231, protein: 6, quantity: '300 גרם', libraryItemId: 'potato' });
-    expect(hook.result.current.store.queue).toEqual([]);
-    expect(hook.result.current.flow.lastAddedId).toBe(entry.id);
-    expect(calls).toEqual([]);
-  });
-
-  it('does not use the relay either', async () => {
-    const calls = stubNetwork(() => json({}, 500));
-    const hook = await setup({ relayUrl: RELAY_URL, relayToken: 'pw' }, [], [potato]);
-    await send(hook, '300 גרם תפוחי אדמה');
-    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
-    expect(calls).toEqual([]);
-  });
-
-  it('sends anything less certain to the AI', async () => {
+  it('still sends a message made only of library foods to the AI', async () => {
     const calls = stubNetwork(() => gemini(okResult()));
     const hook = await setup({}, [], [potato]);
-    await send(hook, '300 גרם תפוחי אדמה מטוגנים');
+    await send(hook, '300 גרם תפוחי אדמה');
     await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
     expect(calls.map(modelOf)).toEqual([MAIN_MODEL]);
     expect(hook.result.current.store.entries[0]).not.toHaveProperty('computedLocally');
-  });
-
-  it('a message with answers to questions goes to the AI', async () => {
-    const calls = stubNetwork(() => gemini(okResult()));
-    const clarify: QueueItem = { id: 'q', text: '300 גרם תפוחי אדמה', date: todayKey(), createdAt: new Date().toISOString(), phase: 'clarify', questions: [] };
-    const hook = await setup({}, [clarify], [potato]);
-    act(() => hook.result.current.flow.answer('q', [{ question: 'מבושל?', answer: 'כן' }]));
-    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
-    expect(calls).toHaveLength(1);
   });
 });
 

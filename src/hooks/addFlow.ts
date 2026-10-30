@@ -3,7 +3,6 @@ import { AiError, FALL_BACK_ON, analyzeFood, buildAnalyzeRequestChain, nextModel
 import { RelayError, deleteJob, getJob, putJob, relayConfig } from '../services/relay';
 import { describeRelayFailure } from '../services/relayJobs';
 import { withAutoLibrary } from '../utils/autoLibrary';
-import { analyzeLocally } from '../utils/localCalc';
 import { learnMealType, mealByTime, mealHintFor } from '../utils/meals';
 import { useStore } from '../store/store';
 import type { Clarification, Entry, QueueItem } from '../types';
@@ -49,9 +48,9 @@ export function useAddFlow() {
     return found;
   }, []);
 
-  /** Turn the API's answer (or the library's, when `local`) into an entry, a clarification card or an error card. */
+  /** Turn the API's answer into an entry, a clarification card or an error card. */
   const settle = useCallback(
-    (item: Loading, outcome: () => FoodResult, local = false) => {
+    (item: Loading, outcome: () => FoodResult) => {
       const { id, text, date, createdAt, answers } = item;
       let res: FoodResult;
       try {
@@ -76,7 +75,6 @@ export function useAddFlow() {
         items,
         ...(answers?.length ? { clarifications: answers } : {}),
         mealType,
-        ...(local ? { computedLocally: true } : {}),
       };
       latest.current.actions.addEntry(entry);
       const used = new Set(items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
@@ -98,16 +96,6 @@ export function useAddFlow() {
         const cfg = { apiKey: settings.apiKey, model: settings.model };
         const hint = mealHintFor(item.date, item.createdAt);
         const relay = relayConfig(settings);
-
-        // A message made only of library foods, written unmistakably, is worked out here without the AI.
-        // Answers to questions, and requests already at the relay, always stay with the AI.
-        if (!item.answers?.length && !item.relay) {
-          const local = analyzeLocally(item.text, library, hint);
-          if (local) {
-            settle(item, () => local, true);
-            return;
-          }
-        }
 
         if (!relay) {
           // Every request starts from the configured model; on a rate-limit or overload, step down the
