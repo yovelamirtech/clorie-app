@@ -1,4 +1,4 @@
-import type { Entry, LibraryItem, MealType } from '../types';
+import type { Entry, LibraryItem, LibraryVariant, MealType } from '../types';
 import { addDays, toDateKey } from './dates';
 import { mealByTime } from './meals';
 import { uid } from './common';
@@ -7,7 +7,8 @@ import { uid } from './common';
 export type QuickPick = {
   key: string;
   libraryItemId: string;
-  name: string;
+  variantId?: string;
+  name: string; // with the variant's label, when there is one
   quantity: string;
   calories: number;
   protein: number;
@@ -20,6 +21,7 @@ export const QUICK_PICK_DAYS = 30;
 const SAME_MEAL_BONUS = 2;
 
 type Use = { createdAt: string; quantity: string; calories: number; protein: number; meal?: MealType };
+type Group = { key: string; item: LibraryItem; variant?: LibraryVariant; list: Use[] };
 
 /** The most frequent value; ties go to the one used most recently. `uses` is sorted oldest first. */
 function mostCommon<T>(uses: Use[], pick: (u: Use) => T | undefined): T | undefined {
@@ -39,38 +41,43 @@ function mostCommon<T>(uses: Use[], pick: (u: Use) => T | undefined): T | undefi
 
 /**
  * The library foods logged most in the last 30 days, favoring the ones eaten at the meal `now` falls in.
- * Each comes with its most common quantity, valued as it was the last time it was logged that way.
+ * Each variant of a food counts as a food of its own. Each comes with its most common quantity, valued as
+ * it was the last time it was logged that way.
  */
 export function quickPicks(entries: Entry[], library: LibraryItem[], now: Date, limit = 5): QuickPick[] {
   const from = addDays(toDateKey(now), -(QUICK_PICK_DAYS - 1));
   const meal = mealByTime(now);
   const byId = new Map(library.map((l) => [l.id, l]));
-  const uses = new Map<string, { item: LibraryItem; list: Use[] }>();
+  const uses = new Map<string, Group>();
 
   const recent = entries.filter((e) => e.date >= from).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const e of recent) {
     for (const it of e.items) {
       const item = it.libraryItemId ? byId.get(it.libraryItemId) : undefined;
       if (!item) continue;
-      const group = uses.get(item.id) ?? { item, list: [] };
+      // A variant deleted from the item since counts as the item itself.
+      const variant = it.variantId ? item.variants?.find((v) => v.id === it.variantId) : undefined;
+      const key = variant ? `${item.id}:${variant.id}` : item.id;
+      const group = uses.get(key) ?? { key, item, variant, list: [] };
       group.list.push({ createdAt: e.createdAt, quantity: it.quantity.trim(), calories: it.calories, protein: it.protein, meal: e.mealType });
-      uses.set(item.id, group);
+      uses.set(key, group);
     }
   }
 
-  const scored = [...uses.values()].map(({ item, list }) => {
-    const atMeal = list.filter((u) => u.meal === meal).length;
-    return { item, list, score: list.length + SAME_MEAL_BONUS * atMeal, last: list[list.length - 1].createdAt };
+  const scored = [...uses.values()].map((g) => {
+    const atMeal = g.list.filter((u) => u.meal === meal).length;
+    return { ...g, score: g.list.length + SAME_MEAL_BONUS * atMeal, last: g.list[g.list.length - 1].createdAt };
   });
   scored.sort((a, b) => b.score - a.score || b.last.localeCompare(a.last));
 
-  return scored.slice(0, limit).map(({ item, list }): QuickPick => {
+  return scored.slice(0, limit).map(({ key, item, variant, list }): QuickPick => {
     const quantity = mostCommon(list, (u) => u.quantity) ?? '';
     const latest = [...list].reverse().find((u) => u.quantity === quantity) ?? list[list.length - 1];
     return {
-      key: item.id,
+      key,
       libraryItemId: item.id,
-      name: item.name,
+      ...(variant ? { variantId: variant.id } : {}),
+      name: variant ? `${item.name} ${variant.label}` : item.name,
       quantity,
       calories: latest.calories,
       protein: latest.protein,
@@ -99,6 +106,7 @@ export function quickPickEntry(pick: QuickPick, date: string, now: Date): Entry 
         calories: pick.calories,
         protein: pick.protein,
         libraryItemId: pick.libraryItemId,
+        ...(pick.variantId ? { variantId: pick.variantId } : {}),
       },
     ],
     mealType,

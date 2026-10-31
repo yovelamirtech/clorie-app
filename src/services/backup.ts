@@ -1,5 +1,5 @@
 import type { AppData } from './db';
-import type { Entry, LibraryItem, Settings } from '../types';
+import type { Entry, LibraryItem, LibraryVariant, Settings } from '../types';
 import { todayKey } from '../utils/dates';
 import { isMealType, mealTypesFrom } from '../utils/meals';
 
@@ -57,6 +57,23 @@ function checkLibraryItem(v: unknown): v is LibraryItem {
   return isObj(v) && isStr(v.id) && isStr(v.name) && isStr(v.unit) && isNum(v.caloriesPerUnit) && Array.isArray(v.aliases);
 }
 
+/** Valid variants only, without fields this version doesn't know; undefined when there are none. */
+function variantsFrom(v: unknown): LibraryVariant[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const list = v.flatMap((x): LibraryVariant[] =>
+    isObj(x) && isStr(x.id) && isStr(x.label) && isNum(x.caloriesPerUnit)
+      ? [{
+          id: x.id,
+          label: x.label,
+          caloriesPerUnit: x.caloriesPerUnit,
+          ...(isNum(x.proteinPerUnit) ? { proteinPerUnit: x.proteinPerUnit } : {}),
+          ...(x.unverified === true ? { unverified: true } : {}),
+        }]
+      : [],
+  );
+  return list.length ? list : undefined;
+}
+
 function checkEntry(v: unknown): v is Entry {
   return (
     isObj(v) && isStr(v.id) && isStr(v.date) && /^\d{4}-\d{2}-\d{2}$/.test(v.date) && isStr(v.createdAt) &&
@@ -89,10 +106,12 @@ export function parseBackup(text: string): Backup {
       onboardingDone: true,
     },
     // Meal fields are optional; drop values this version doesn't know rather than reject the file.
-    library: raw.library.map(({ mealTypes, mealTypesByUser, unverified, ...i }) => {
+    library: raw.library.map(({ mealTypes, mealTypesByUser, unverified, variants, ...i }) => {
       const meals = mealTypesFrom(mealTypes);
+      const vs = variantsFrom(variants);
       return {
         ...i,
+        ...(vs ? { variants: vs } : {}),
         ...(meals ? { mealTypes: meals } : {}),
         ...(mealTypesByUser === true ? { mealTypesByUser } : {}),
         ...(unverified === true ? { unverified } : {}),

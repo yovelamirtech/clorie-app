@@ -42,6 +42,7 @@ Each option
 The user's personal library
 - These are foods the user has and eats, with their own verified values and the meals each one fits (mealTypes; missing = unknown).
 - For a library food, set libraryItemId to its id and compute calories and protein from its per-unit values. Otherwise set libraryItemId to null.
+- A library food with variants (sizes, or home-made vs. a chain) has its own values per variant: pick one, use its values, and name it in the item's name (e.g. "בורקס גבינה קטן").
 
 Mode (given in the user message)
 - "library": build options mainly from library foods that fit the meal; adding a common side (vegetables, salad, a fruit) is fine. If fewer than 3 good options can be built from the library, fill up to 3-5 with options from outside it.
@@ -59,6 +60,9 @@ export function buildRecommendMessage(r: RecommendRequest): string {
     proteinPerUnit: i.proteinPerUnit ?? null,
     mealTypes: i.mealTypes,
     note: i.note || undefined,
+    variants: i.variants?.length
+      ? i.variants.map((v) => ({ label: v.label, caloriesPerUnit: v.caloriesPerUnit, proteinPerUnit: v.proteinPerUnit ?? null }))
+      : undefined,
   }));
   const budget = r.budget > 0 ? `${r.budget} calories` : `the user is already over today's target; suggest very light options, up to ${OVER_TARGET_BUDGET} calories`;
   const lines = [

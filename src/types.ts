@@ -12,6 +12,15 @@ export type Settings = {
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
+/** One version of a food whose value depends on its size or where it's from ("קטן", "ביתי", "מקדונלדס"). */
+export type LibraryVariant = {
+  id: string;
+  label: string;
+  caloriesPerUnit: number; // per the item's unit, like the item's own value
+  proteinPerUnit?: number;
+  unverified?: boolean; // added automatically from an AI estimate; cleared when the user saves the item
+};
+
 export type LibraryItem = {
   id: string;
   name: string;
@@ -23,6 +32,8 @@ export type LibraryItem = {
   mealTypes?: MealType[]; // meals this food fits; undefined = not classified yet
   mealTypesByUser?: boolean; // set by hand: the AI no longer changes mealTypes
   unverified?: boolean; // added automatically from an AI estimate; cleared when the user saves it in the form
+  /** Versions of a food that isn't always the same. When set, caloriesPerUnit/proteinPerUnit are the first one's. */
+  variants?: LibraryVariant[];
   updatedAt: string; // ISO
 };
 
@@ -34,6 +45,7 @@ export type EntryItem = {
   protein: number;
   assumption?: string;
   libraryItemId?: string;
+  variantId?: string; // which of the library item's variants
   editedByUser?: boolean;
   addedToLibrary?: boolean; // this entry added libraryItemId to the library automatically
 };

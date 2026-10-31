@@ -106,6 +106,22 @@ describe('quickPicks', () => {
     expect(quickPicks(entries, library, NOW)[0].meal).toBe('snack');
   });
 
+  it('counts each variant as a food of its own, named with its label', () => {
+    const vlib = [{ ...libItem('burekas', 'בורקס גבינה'), variants: [{ id: 'small', label: 'קטן', caloriesPerUnit: 200 }, { id: 'big', label: 'גדול', caloriesPerUnit: 350 }] }];
+    const withVariant = (e: Entry, variantId: string): Entry => ({ ...e, items: e.items.map((i) => ({ ...i, variantId })) });
+    const entries = [
+      withVariant(entry('2026-10-19', 8, 'breakfast', [['burekas', 'יחידה', 350]]), 'big'),
+      withVariant(entry('2026-10-20', 8, 'breakfast', [['burekas', 'יחידה', 350]]), 'big'),
+      withVariant(entry('2026-10-21', 8, 'breakfast', [['burekas', 'יחידה', 200]]), 'small'),
+      withVariant(entry('2026-10-21', 9, 'breakfast', [['burekas', 'יחידה', 250]]), 'deleted'),
+    ];
+    expect(quickPicks(entries, vlib, NOW).map((p) => [p.key, p.name, p.variantId])).toEqual([
+      ['burekas:big', 'בורקס גבינה גדול', 'big'],
+      ['burekas', 'בורקס גבינה', undefined],
+      ['burekas:small', 'בורקס גבינה קטן', 'small'],
+    ]);
+  });
+
   it('is empty with no history', () => {
     expect(quickPicks([], library, NOW)).toEqual([]);
   });
@@ -131,6 +147,11 @@ describe('quickPickEntry', () => {
   it("takes today's meal from the time, another day's from the food's habit", () => {
     expect(quickPickEntry(pick, '2026-10-22', NOW).mealType).toBe('breakfast');
     expect(quickPickEntry(pick, '2026-10-20', NOW).mealType).toBe('dinner');
+  });
+
+  it("links the entry to the pick's variant", () => {
+    expect(quickPickEntry({ ...pick, variantId: 'big' }, '2026-10-22', NOW).items[0].variantId).toBe('big');
+    expect(quickPickEntry(pick, '2026-10-22', NOW).items[0]).not.toHaveProperty('variantId');
   });
 
   it('keeps a snack food a snack', () => {

@@ -76,6 +76,11 @@ describe('buildRecommendMessage', () => {
     expect(msg).not.toContain('already_suggested');
   });
 
+  it("includes a library food's variants", () => {
+    const withVariants = [{ ...lib[1], variants: [{ id: 'v', label: 'גדול', caloriesPerUnit: 120, proteinPerUnit: 4 }] }];
+    expect(buildRecommendMessage({ ...req, library: withVariants })).toContain('"variants":[{"label":"גדול","caloriesPerUnit":120,"proteinPerUnit":4}]');
+  });
+
   it('asks for very light options when over the target', () => {
     expect(buildRecommendMessage({ ...req, budget: 0 })).toContain(`up to ${OVER_TARGET_BUDGET} calories`);
   });
