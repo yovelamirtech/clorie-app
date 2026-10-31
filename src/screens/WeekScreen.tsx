@@ -11,7 +11,8 @@ export function WeekScreen({ onOpenDay }: { onOpenDay: (date: string) => void })
     const today = todayKey();
     const keys = Array.from({ length: 7 }, (_, i) => addDays(today, -i));
     return keys.map((key) => {
-      const dayEntries = entries.filter((e) => e.date === key);
+      // Planned entries weren't eaten (yet).
+      const dayEntries = entries.filter((e) => e.date === key && !e.planned);
       return {
         key,
         logged: dayEntries.length > 0,

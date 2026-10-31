@@ -2,7 +2,9 @@ import { useState } from 'react';
 import type { Entry } from '../types';
 import { mealByTime } from '../utils/meals';
 import { parseNum, round1, uid } from '../utils/common';
+import { atTime, todayKey } from '../utils/dates';
 import { Dialog } from './Dialog';
+import { TimeChip } from './TimeChip';
 
 type Props = {
   date: string;
@@ -15,6 +17,7 @@ export function ManualEntryForm({ date, onSubmit, onCancel }: Props) {
   const [name, setName] = useState('');
   const [cal, setCal] = useState('');
   const [protein, setProtein] = useState('');
+  const [time, setTime] = useState<string | null>(null);
 
   const calN = parseNum(cal);
   const protN = parseNum(protein);
@@ -24,6 +27,7 @@ export function ManualEntryForm({ date, onSubmit, onCancel }: Props) {
     if (!valid) return;
     const title = name.trim();
     const createdAt = new Date().toISOString();
+    const eatenAt = time ? atTime(date, time) : undefined;
     onSubmit({
       id: uid(),
       date,
@@ -31,7 +35,9 @@ export function ManualEntryForm({ date, onSubmit, onCancel }: Props) {
       originalText: '',
       title,
       items: [{ id: uid(), name: title, quantity: '', calories: Math.round(calN!), protein: protN !== null ? round1(protN) : 0 }],
-      mealType: mealByTime(new Date(createdAt)),
+      mealType: mealByTime(new Date(eatenAt ?? createdAt)),
+      ...(eatenAt ? { eatenAt } : {}),
+      ...(date > todayKey() ? { planned: true } : {}),
     });
   };
 
@@ -51,6 +57,10 @@ export function ManualEntryForm({ date, onSubmit, onCancel }: Props) {
             חלבון (ג׳) <span className="text-muted">אופציונלי</span>
             <input className="input num" inputMode="decimal" value={protein} onChange={(e) => setProtein(e.target.value)} />
           </label>
+        </div>
+        <div className="flex items-center gap-2 text-[0.9rem] font-medium chips-sm">
+          שעה
+          <TimeChip value={time} onChange={setTime} emptyLabel={date === todayKey() ? 'עכשיו' : 'בלי שעה'} />
         </div>
         <div className="flex flex-wrap justify-end gap-2 mt-4">
           <button type="button" className="btn" onClick={onCancel}>ביטול</button>

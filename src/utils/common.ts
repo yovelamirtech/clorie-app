@@ -8,6 +8,8 @@ export const uid = () =>
 export const sumCalories = (items: EntryItem[]) => items.reduce((s, i) => s + i.calories, 0);
 export const sumProtein = (items: EntryItem[]) => items.reduce((s, i) => s + i.protein, 0);
 export const entryCalories = (e: Entry) => sumCalories(e.items);
+/** When the entry was eaten: the time the user gave, else when it was logged. */
+export const entryTime = (e: Pick<Entry, 'createdAt' | 'eatenAt'>) => e.eatenAt ?? e.createdAt;
 
 const intFmt = new Intl.NumberFormat('he-IL', { maximumFractionDigits: 0 });
 const oneFmt = new Intl.NumberFormat('he-IL', { maximumFractionDigits: 1 });

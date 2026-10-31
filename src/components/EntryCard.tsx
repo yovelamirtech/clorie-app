@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Entry, EntryItem, LibraryItem } from '../types';
 import { useStore } from '../store/store';
-import { timeLabel } from '../utils/dates';
+import { atTime, clockTime, timeLabel, toDateKey, todayKey } from '../utils/dates';
 import { perUnitFrom } from '../utils/perUnit';
 import { withoutMealPrefix } from '../utils/meals';
-import { CALORIE_WARNING, entryCalories, fmt1, fmtInt, parseNum, round1 } from '../utils/common';
+import { CALORIE_WARNING, entryCalories, entryTime, fmt1, fmtInt, parseNum, round1 } from '../utils/common';
 import { ConfirmDialog, Dialog } from './Dialog';
 import { LibraryItemForm, type LibraryDraft } from './LibraryItemForm';
-import { Book, Pencil, Trash, Warn } from './Icons';
+import { Book, Check, Pencil, Trash, Warn } from './Icons';
+import { TimeChip } from './TimeChip';
 
 type Suggestion = { itemId: string; draft: LibraryDraft; isUpdate: boolean; basis: string };
 
@@ -134,7 +135,26 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
     setSuggestion(null);
   };
 
+  const setTime = (time: string | null) => {
+    const next: Entry = { ...entry };
+    if (time) next.eatenAt = atTime(entry.date, time);
+    else delete next.eatenAt;
+    actions.updateEntry(next);
+  };
+
+  /** A planned entry was eaten: it counts from now on. Without a time of its own, it takes now's, if now is on its day. */
+  const confirmEaten = () => {
+    const next: Entry = { ...entry };
+    delete next.planned;
+    const now = new Date();
+    if (!next.eatenAt && toDateKey(now) === entry.date) next.eatenAt = now.toISOString();
+    actions.updateEntry(next);
+  };
+
   const total = entryCalories(entry);
+  // A time on another day (an entry logged the day before, or for an earlier day) isn't shown.
+  const time = toDateKey(new Date(entryTime(entry))) === entry.date ? timeLabel(entryTime(entry)) : null;
+  const canConfirm = entry.planned && entry.date <= todayKey();
   // Older entries' titles may still start with the meal ("ארוחת בוקר: ...").
   const title = withoutMealPrefix(entry.title);
   // Items deleted from the library since then aren't listed.
@@ -144,12 +164,21 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
   });
 
   return (
-    <div ref={ref} className={`bg-surface border border-border rounded-app shadow-app overflow-hidden transition-colors duration-[0.6s] ease-in-out ${highlight ? 'bg-flash' : ''}`}>
+    <div ref={ref} className={`bg-surface border border-border rounded-app shadow-app overflow-hidden transition-colors duration-[0.6s] ease-in-out ${entry.planned ? 'border-dashed' : ''} ${highlight ? 'bg-flash' : ''}`}>
       <button className="flex items-baseline gap-2.5 w-full border-0 bg-transparent px-3.5 py-[13px] text-start cursor-pointer" onClick={onToggle} aria-expanded={expanded}>
-        <span className="flex-1 font-medium min-w-0">{title}</span>
-        <span className="num text-faint text-[0.85rem]">{timeLabel(entry.createdAt)}</span>
-        <span className="num font-semibold min-w-[3.2em] text-end">{fmtInt(total)}</span>
+        <span className="flex-1 font-medium min-w-0">
+          {title}
+          {entry.planned && <span className="badge badge-edit">מתוכנן</span>}
+        </span>
+        {time && <span className="num text-faint text-[0.85rem]">{time}</span>}
+        <span className={`num font-semibold min-w-[3.2em] text-end ${entry.planned ? 'text-muted' : ''}`}>{fmtInt(total)}</span>
       </button>
+      {canConfirm && (
+        <div className="flex items-center justify-between gap-2 px-3.5 pb-3 -mt-1">
+          <span className="text-muted text-[0.85rem]">עוד לא נספר. אכלת?</span>
+          <button className="btn btn-sm btn-primary" onClick={confirmEaten}><Check size={16} /> אכלתי</button>
+        </div>
+      )}
 
       {expanded && (
         <div className="px-3.5 pb-3 border-t border-border">
@@ -172,6 +201,10 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
             ))}
           </ul>
           {entry.items.length === 0 && <div className="text-muted text-[0.85rem]">אין פריטים ברישום הזה.</div>}
+          <div className="flex items-center gap-2 mt-2 text-[0.85rem] text-muted chips-sm">
+            שעה
+            <TimeChip value={entry.eatenAt ? clockTime(entry.eatenAt) : null} onChange={setTime} emptyLabel={time ?? 'בלי שעה'} />
+          </div>
           {entry.computedLocally && (
             <div className="flex items-center gap-1 mt-2 text-[0.8rem] text-muted"><Book size={12} /> חושב מהמאגר, בלי AI</div>
           )}

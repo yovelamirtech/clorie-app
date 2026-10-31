@@ -5,7 +5,7 @@ import { useStore } from '../store/store';
 import type { SuggestFlow } from '../hooks/suggestFlow';
 import type { Entry, MealType } from '../types';
 import { relayWaitingText } from '../services/relayJobs';
-import { entryCalories, fmt1, fmtInt } from '../utils/common';
+import { entryCalories, entryTime, fmt1, fmtInt } from '../utils/common';
 import { Dialog } from './Dialog';
 import { Book } from './Icons';
 
@@ -22,8 +22,10 @@ function SuggestDialog({ flow, target, dayEntries, onClose }: { flow: SuggestFlo
   const { state, loading, request, clear, markSeen } = flow;
   const [meal, setMeal] = useState<MealType>(() => state?.meal ?? mealByTime(new Date()));
 
-  const eaten = useMemo(() => new Set(dayEntries.map((e) => e.mealType ?? mealByTime(new Date(e.createdAt)))), [dayEntries]);
+  // Planned entries count as eaten here, so the budget keeps room for them.
+  const eaten = useMemo(() => new Set(dayEntries.map((e) => e.mealType ?? mealByTime(new Date(entryTime(e))))), [dayEntries]);
   const liveRemaining = target - dayEntries.reduce((s, e) => s + entryCalories(e), 0);
+  const planned = dayEntries.reduce((s, e) => s + (e.planned ? entryCalories(e) : 0), 0);
   const liveBudget = mealBudget(meal, liveRemaining, eaten);
 
   // Saved suggestions keep the budget they were made for.
@@ -61,7 +63,8 @@ function SuggestDialog({ flow, target, dayEntries, onClose }: { flow: SuggestFlo
       <p className="hint !mt-2.5">
         {remaining > 0 ? (
           <>
-            נשארו <span className="num">{fmtInt(remaining)}</span> קלוריות היום. תקציב {mealPhrase(meal)}: <span className="whitespace-nowrap">כ-<b className="num">{fmtInt(budget.calories)}</b></span>
+            נשארו <span className="num">{fmtInt(remaining)}</span> קלוריות היום
+            {planned > 0 && <> (אחרי <span className="num">{fmtInt(planned)}</span> מתוכננות)</>}. תקציב {mealPhrase(meal)}: <span className="whitespace-nowrap">כ-<b className="num">{fmtInt(budget.calories)}</b></span>
             {budget.reserved.length > 0 && <> (שומר מקום לארוחת {budget.reserved.map((m) => MEAL_LABELS[m]).join(' ו')})</>}
           </>
         ) : (

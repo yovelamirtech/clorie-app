@@ -53,6 +53,13 @@ describe('mealHintFor', () => {
     expect(mealHintFor('2026-10-22', sent)).toEqual({ time: '08:05', meal: 'breakfast' });
   });
 
+  it('prefers a time the user gave, on the entry\'s day', () => {
+    const sent = at(21, 30).toISOString();
+    const next = new Date(2026, 9, 23, 13, 0).toISOString();
+    expect(mealHintFor('2026-10-23', sent, next)).toEqual({ time: '13:00', meal: 'lunch', given: true });
+    expect(mealHintFor('2026-10-22', sent, next)).toBeNull();
+  });
+
   it('is null when the entry is for another day', () => {
     expect(mealHintFor('2026-10-21', at(8, 5).toISOString())).toBeNull();
   });

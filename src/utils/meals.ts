@@ -48,15 +48,18 @@ export function withoutMealPrefix(title: string): string {
   return rest || title.trim();
 }
 
-/** What the time a message was sent says about its meal; null when the entry is for another day. */
-export type MealHint = { time: string; meal: MainMeal } | null;
+/**
+ * What the time says about an entry's meal: the time the user gave (`given`), else the time the message
+ * was sent; null when that time isn't on the entry's day.
+ */
+export type MealHint = { time: string; meal: MainMeal; given?: true } | null;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function mealHintFor(date: string, createdAt: string): MealHint {
-  const sent = new Date(createdAt);
-  if (toDateKey(sent) !== date) return null;
-  return { time: `${pad(sent.getHours())}:${pad(sent.getMinutes())}`, meal: mealByTime(sent) };
+export function mealHintFor(date: string, createdAt: string, eatenAt?: string): MealHint {
+  const at = new Date(eatenAt ?? createdAt);
+  if (toDateKey(at) !== date) return null;
+  return { time: `${pad(at.getHours())}:${pad(at.getMinutes())}`, meal: mealByTime(at), ...(eatenAt ? { given: true as const } : {}) };
 }
 
 const MAIN_MEALS: readonly MainMeal[] = ['breakfast', 'lunch', 'dinner'];

@@ -68,6 +68,14 @@ describe('quickPicks', () => {
     expect(quickPicks(entries, library, NOW).map((p) => p.libraryItemId)).toEqual(['egg']);
   });
 
+  it('skips planned entries, which were not eaten yet', () => {
+    const entries = [
+      { ...entry('2026-10-21', 8, 'breakfast', [['bread', 'פרוסה', 80]]), planned: true },
+      entry('2026-10-21', 8, 'breakfast', [['egg', 'יחידה', 73]]),
+    ];
+    expect(quickPicks(entries, library, NOW).map((p) => p.libraryItemId)).toEqual(['egg']);
+  });
+
   it('skips items not from the library and items deleted from it', () => {
     const entries = [entry('2026-10-21', 8, 'breakfast', [[undefined, 'מנה', 300], ['gone', 'יחידה', 50], ['egg', 'יחידה', 73]])];
     expect(quickPicks(entries, library, NOW).map((p) => p.libraryItemId)).toEqual(['egg']);
@@ -152,6 +160,18 @@ describe('quickPickEntry', () => {
   it("links the entry to the pick's variant", () => {
     expect(quickPickEntry({ ...pick, variantId: 'big' }, '2026-10-22', NOW).items[0].variantId).toBe('big');
     expect(quickPickEntry(pick, '2026-10-22', NOW).items[0]).not.toHaveProperty('variantId');
+  });
+
+  it('takes the meal from a time the user gave, and keeps the time', () => {
+    const at = new Date(2026, 9, 22, 13, 0).toISOString();
+    const e = quickPickEntry(pick, '2026-10-22', NOW, at);
+    expect(e).toMatchObject({ mealType: 'lunch', eatenAt: at });
+    expect(quickPickEntry(pick, '2026-10-22', NOW)).not.toHaveProperty('eatenAt');
+  });
+
+  it('plans an entry for a later day', () => {
+    expect(quickPickEntry(pick, '2026-10-23', NOW).planned).toBe(true);
+    expect(quickPickEntry(pick, '2026-10-22', NOW)).not.toHaveProperty('planned');
   });
 
   it('keeps a snack food a snack', () => {

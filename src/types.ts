@@ -62,6 +62,8 @@ export type Entry = {
   clarifications?: Clarification[];
   mealType?: MealType; // not shown in the diary; feeds the library's meal types
   computedLocally?: boolean; // worked out from the library alone, without the AI (quick picks, and older entries)
+  eatenAt?: string; // ISO; a time the user gave. Unset = createdAt
+  planned?: boolean; // logged ahead for tomorrow: not counted until the user confirms they ate it
 };
 
 /** Relay progress of a queued request. */
@@ -80,6 +82,8 @@ export type QueueItem = {
   date: string; // day the entry is for
   createdAt: string; // ISO
   answers?: Clarification[];
+  eatenAt?: string; // ISO; a time the user gave
+  planned?: boolean; // sent for tomorrow; the entry is saved as planned
 } & (
   | {
       phase: 'loading';

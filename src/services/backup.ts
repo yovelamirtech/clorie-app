@@ -78,6 +78,8 @@ function checkEntry(v: unknown): v is Entry {
   return (
     isObj(v) && isStr(v.id) && isStr(v.date) && /^\d{4}-\d{2}-\d{2}$/.test(v.date) && isStr(v.createdAt) &&
     isStr(v.title) && Array.isArray(v.items) &&
+    (v.eatenAt === undefined || (isStr(v.eatenAt) && !Number.isNaN(Date.parse(v.eatenAt)))) &&
+    (v.planned === undefined || typeof v.planned === 'boolean') &&
     v.items.every((i) => isObj(i) && isStr(i.id) && isStr(i.name) && isNum(i.calories) && isNum(i.protein))
   );
 }

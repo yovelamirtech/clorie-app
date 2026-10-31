@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { addDays, dayLabel, fromDateKey, shortDate, timeLabel, toDateKey, todayKey, weekdayName } from '../src/utils/dates';
+import { addDays, atTime, clockTime, dayLabel, fromDateKey, shortDate, timeLabel, toDateKey, todayKey, tomorrowKey, weekdayName } from '../src/utils/dates';
 
 describe('date keys', () => {
   it('toDateKey pads month and day', () => {
@@ -40,9 +40,11 @@ describe('relative labels', () => {
     expect(todayKey()).toBe('2026-10-22');
   });
 
-  it('dayLabel names today and yesterday', () => {
+  it('dayLabel names today, yesterday and tomorrow', () => {
     expect(dayLabel('2026-10-22')).toBe('היום');
     expect(dayLabel('2026-10-21')).toBe('אתמול');
+    expect(dayLabel('2026-10-23')).toBe('מחר');
+    expect(tomorrowKey()).toBe('2026-10-23');
   });
 
   it('dayLabel formats other days as a date', () => {
@@ -58,6 +60,12 @@ describe('relative labels', () => {
   it('weekdayName is the full Hebrew day name', () => {
     expect(weekdayName('2026-10-22')).toBe('יום חמישי');
     expect(weekdayName('2026-10-24')).toBe('יום שבת');
+  });
+
+  it('atTime and clockTime convert between a day\'s local "HH:MM" and ISO', () => {
+    const iso = atTime('2026-10-23', '13:05');
+    expect(iso).toBe(new Date(2026, 9, 23, 13, 5).toISOString());
+    expect(clockTime(iso)).toBe('13:05');
   });
 
   it('timeLabel is the local 24-hour time', () => {

@@ -3,7 +3,7 @@ import { StoreProvider, useStore } from './store/store';
 import { useAddFlow } from './hooks/addFlow';
 import { useMealClassifier } from './hooks/mealClassifier';
 import { useSuggestFlow } from './hooks/suggestFlow';
-import { todayKey } from './utils/dates';
+import { addDays, todayKey } from './utils/dates';
 import { PROVIDER } from './ai';
 import type { Tab } from './types';
 import { Gear } from './components/Icons';
@@ -59,9 +59,9 @@ function Shell() {
   const { settings } = useStore();
   const [tab, setTab] = useState<Tab>('today');
   const today = useToday();
-  // null = follow "today", so the main screen rolls over at midnight.
+  // null = follow "today", so the main screen rolls over at midnight. A past day, or tomorrow (to plan ahead).
   const [pickedDate, setPickedDate] = useState<string | null>(null);
-  const date = pickedDate && pickedDate < today ? pickedDate : today;
+  const date = pickedDate && (pickedDate < today || pickedDate === addDays(today, 1)) ? pickedDate : today;
   const flow = useAddFlow();
   const classifier = useMealClassifier();
   const suggest = useSuggestFlow();
@@ -69,7 +69,7 @@ function Shell() {
 
   if (!settings.onboardingDone) return <Onboarding />;
 
-  const setDate = (d: string) => setPickedDate(d >= today ? null : d);
+  const setDate = (d: string) => setPickedDate(d === today ? null : d);
 
   return (
     <div className="app max-w-[600px] mx-auto min-h-[100dvh]">
