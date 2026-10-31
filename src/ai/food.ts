@@ -123,7 +123,7 @@ Saving to the library
 Meal type
 - mealType: the meal the food was eaten at: "breakfast", "lunch", "dinner", or "snack" (something small between meals).
 - If the text says which meal it was (e.g. "ארוחת בוקר: ...", "בצהריים אכלתי", "נשנוש"), use that. Such words describe the meal; they are not food items.
-- Otherwise, when the user message gives the meal by the time the message was sent, use it, unless the food is a snack between meals rather than a meal: a small amount (roughly under 250 calories) or something typically eaten as a snack (a fruit, a yogurt, a handful of nuts, a cookie, a bar). Then use "snack".
+- Otherwise, when the user message gives the meal by the time (the time the user said they ate it, or the time the message was sent), use it, unless the food is a snack between meals rather than a meal: a small amount (roughly under 250 calories) or something typically eaten as a snack (a fruit, a yogurt, a handful of nuts, a cookie, a bar). Then use "snack".
 - When no time is given (the entry is for another day), infer the meal from the food itself.
 
 Output
@@ -144,9 +144,11 @@ export function buildUserMessage(text: string, library: LibraryItem[], hint: Mea
       ? i.variants.map((v) => ({ id: v.id, label: v.label, caloriesPerUnit: v.caloriesPerUnit, proteinPerUnit: v.proteinPerUnit ?? null }))
       : undefined,
   }));
-  const meal = hint
-    ? `Sent at ${hint.time}, which by the time is ${hint.meal} (${MEAL_LABELS[hint.meal]}).`
-    : 'The entry is for another day, so the time it was sent says nothing about the meal.';
+  const meal = !hint
+    ? 'The entry is for another day, so the time it was sent says nothing about the meal.'
+    : hint.given
+      ? `The user said they ate it at ${hint.time}, which by the time is ${hint.meal} (${MEAL_LABELS[hint.meal]}).`
+      : `Sent at ${hint.time}, which by the time is ${hint.meal} (${MEAL_LABELS[hint.meal]}).`;
   let msg = `<personal_library>\n${JSON.stringify(lib)}\n</personal_library>\n\n<meal_time>\n${meal}\n</meal_time>\n\n<food_description>\n${text}\n</food_description>`;
   if (answers?.length) {
     msg +=

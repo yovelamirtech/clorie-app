@@ -50,9 +50,9 @@ async function setup(s: Partial<Settings> = {}, queue: QueueItem[] = [], library
 
 type Hook = Awaited<ReturnType<typeof setup>>;
 
-async function send(hook: Hook, text: string, date = todayKey()) {
+async function send(hook: Hook, text: string, date = todayKey(), time: string | null = null) {
   act(() => hook.result.current.flow.setDraft(text));
-  act(() => hook.result.current.flow.send(date));
+  act(() => hook.result.current.flow.send(date, time));
 }
 
 beforeEach(() => kv.clear());
@@ -140,6 +140,34 @@ describe('useAddFlow, direct to Gemini', () => {
     await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
     expect(calls[0].body).toContain('The entry is for another day');
     expect(hook.result.current.store.entries[0].date).toBe(addDays(todayKey(), -1));
+  });
+
+  it('with a time given, saves it and tells the AI it', async () => {
+    const calls = stubNetwork(() => gemini(okResult({ mealType: undefined })));
+    const hook = await setup();
+    await send(hook, 'ביצה', todayKey(), '13:10');
+    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
+    const e = hook.result.current.store.entries[0];
+    const { atTime } = await import('../src/utils/dates');
+    expect(e.eatenAt).toBe(atTime(todayKey(), '13:10'));
+    expect(e.mealType).toBe('lunch');
+    expect(e).not.toHaveProperty('planned');
+    expect(calls[0].body).toContain('The user said they ate it at 13:10, which by the time is lunch');
+  });
+
+  it("saves an entry for tomorrow as planned, keeping its time through a clarification", async () => {
+    const replies = [gemini(question), gemini(okResult())];
+    stubNetwork(() => replies.shift() ?? json({}, 500));
+    const hook = await setup();
+    const tomorrow = addDays(todayKey(), 1);
+    await send(hook, 'קופסה לצהריים', tomorrow, '12:45');
+    await waitFor(() => expect(hook.result.current.store.queue[0]?.phase).toBe('clarify'));
+    expect(hook.result.current.store.queue[0]).toMatchObject({ planned: true });
+
+    act(() => hook.result.current.flow.answer(hook.result.current.store.queue[0].id, [{ question: 'בשמן?', answer: 'לא' }]));
+    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
+    const { atTime } = await import('../src/utils/dates');
+    expect(hook.result.current.store.entries[0]).toMatchObject({ date: tomorrow, planned: true, eatenAt: atTime(tomorrow, '12:45') });
   });
 
   it('asks a clarification question, then saves with the answers', async () => {

@@ -7,8 +7,19 @@ import { learnMealType, mealByTime, mealHintFor } from '../utils/meals';
 import { useStore } from '../store/store';
 import type { Clarification, Entry, QueueItem } from '../types';
 import { uid } from '../utils/common';
+import { atTime, todayKey } from '../utils/dates';
 
 type Loading = Extract<QueueItem, { phase: 'loading' }>;
+
+/** The parts of a queue item that stay the same through every phase. */
+const base = ({ id, text, date, createdAt, eatenAt, planned }: QueueItem) => ({
+  id,
+  text,
+  date,
+  createdAt,
+  ...(eatenAt ? { eatenAt } : {}),
+  ...(planned ? { planned } : {}),
+});
 
 /** How often waiting requests are checked while the app is open. */
 const TICK_MS = 5000;
@@ -51,20 +62,20 @@ export function useAddFlow() {
   /** Turn the API's answer into an entry, a clarification card or an error card. */
   const settle = useCallback(
     (item: Loading, outcome: () => FoodResult) => {
-      const { id, text, date, createdAt, answers } = item;
+      const { text, date, createdAt, answers, eatenAt, planned } = item;
       let res: FoodResult;
       try {
         res = outcome();
       } catch (e) {
-        replace(item, { id, text, date, createdAt, answers, phase: 'error', error: toError(e) });
+        replace(item, { ...base(item), answers, phase: 'error', error: toError(e) });
         return;
       }
       if (res.status === 'needs_clarification') {
-        replace(item, { id, text, date, createdAt, phase: 'clarify', questions: res.questions });
+        replace(item, { ...base(item), phase: 'clarify', questions: res.questions });
         return;
       }
       if (!replace(item, null)) return;
-      const mealType = res.mealType ?? mealByTime(new Date(createdAt));
+      const mealType = res.mealType ?? mealByTime(new Date(eatenAt ?? createdAt));
       const { items, added, updated } = withAutoLibrary(res.items, latest.current.library, mealType);
       const entry: Entry = {
         id: uid(),
@@ -75,6 +86,8 @@ export function useAddFlow() {
         items,
         ...(answers?.length ? { clarifications: answers } : {}),
         mealType,
+        ...(eatenAt ? { eatenAt } : {}),
+        ...(planned ? { planned: true } : {}),
       };
       latest.current.actions.addEntry(entry);
       const used = new Set(items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
@@ -97,7 +110,7 @@ export function useAddFlow() {
       try {
         const { settings, library } = latest.current;
         const cfg = { apiKey: settings.apiKey, model: settings.model };
-        const hint = mealHintFor(item.date, item.createdAt);
+        const hint = mealHintFor(item.date, item.createdAt, item.eatenAt);
         const relay = relayConfig(settings);
 
         if (!relay) {
@@ -190,12 +203,20 @@ export function useAddFlow() {
     [actions, advance],
   );
 
+  /** `time` is "HH:MM" on `date` when the user gave one; null = now. An entry for tomorrow is planned. */
   const send = useCallback(
-    (date: string) => {
+    (date: string, time: string | null = null) => {
       const text = draft.trim();
       if (!text) return;
       setDraft('');
-      start({ id: uid(), text, date, createdAt: new Date().toISOString() }, false);
+      start({
+        id: uid(),
+        text,
+        date,
+        createdAt: new Date().toISOString(),
+        ...(time ? { eatenAt: atTime(date, time) } : {}),
+        ...(date > todayKey() ? { planned: true } : {}),
+      }, false);
     },
     [draft, start],
   );
@@ -207,8 +228,7 @@ export function useAddFlow() {
     (id: string) => {
       const item = find(id);
       if (item?.phase !== 'error') return;
-      const { text, date, createdAt, answers } = item;
-      start({ id, text, date, createdAt, answers }, true);
+      start({ ...base(item), answers: item.answers }, true);
     },
     [start],
   );
@@ -217,8 +237,7 @@ export function useAddFlow() {
     (id: string, answers: Clarification[]) => {
       const item = find(id);
       if (item?.phase !== 'clarify') return;
-      const { text, date, createdAt } = item;
-      start({ id, text, date, createdAt, answers }, true);
+      start({ ...base(item), answers }, true);
     },
     [start],
   );

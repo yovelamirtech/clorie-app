@@ -6,9 +6,11 @@ type Props = {
   onChange: (v: string) => void;
   onSend: () => void;
   top?: ReactNode; // shown above the text box, inside the composer bar
+  start?: ReactNode; // shown before the text box, on its row
+  placeholder?: string;
 };
 
-export function Composer({ value, onChange, onSend, top }: Props) {
+export function Composer({ value, onChange, onSend, top, start, placeholder = 'מה אכלת?' }: Props) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -43,11 +45,12 @@ export function Composer({ value, onChange, onSend, top }: Props) {
     >
       {top}
       <div className="flex items-end gap-2 max-w-[576px] mx-auto">
+        {start && <div className="flex items-center min-h-11 shrink-0 chips-sm">{start}</div>}
         <textarea
           ref={ta}
           className="flex-1 resize-none min-h-11 max-h-[35vh] px-3.5 py-2.5 border border-border rounded-[22px] bg-surface outline-none leading-[1.4] focus:border-accent"
           rows={1}
-          placeholder="מה אכלת?"
+          placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {

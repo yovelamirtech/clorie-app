@@ -50,7 +50,8 @@ export function quickPicks(entries: Entry[], library: LibraryItem[], now: Date, 
   const byId = new Map(library.map((l) => [l.id, l]));
   const uses = new Map<string, Group>();
 
-  const recent = entries.filter((e) => e.date >= from).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  // Planned entries weren't eaten (yet).
+  const recent = entries.filter((e) => e.date >= from && !e.planned).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   for (const e of recent) {
     for (const it of e.items) {
       const item = it.libraryItemId ? byId.get(it.libraryItemId) : undefined;
@@ -88,10 +89,15 @@ export function quickPicks(entries: Entry[], library: LibraryItem[], now: Date, 
 
 /**
  * The diary entry a quick pick adds, worked out without the AI. A food mostly eaten as a snack stays a
- * snack; otherwise today's entry takes its meal from the time, and another day's from the food's habit.
+ * snack; otherwise the entry takes its meal from the time the user gave (`eatenAt`), today's from now,
+ * and another day's from the food's habit. An entry for a later day is planned.
  */
-export function quickPickEntry(pick: QuickPick, date: string, now: Date): Entry {
-  const mealType = pick.meal === 'snack' ? 'snack' : date === toDateKey(now) ? mealByTime(now) : pick.meal;
+export function quickPickEntry(pick: QuickPick, date: string, now: Date, eatenAt?: string): Entry {
+  const mealType =
+    pick.meal === 'snack' ? 'snack'
+    : eatenAt ? mealByTime(new Date(eatenAt))
+    : date === toDateKey(now) ? mealByTime(now)
+    : pick.meal;
   return {
     id: uid(),
     date,
@@ -111,5 +117,7 @@ export function quickPickEntry(pick: QuickPick, date: string, now: Date): Entry 
     ],
     mealType,
     computedLocally: true,
+    ...(eatenAt ? { eatenAt } : {}),
+    ...(date > toDateKey(now) ? { planned: true } : {}),
   };
 }

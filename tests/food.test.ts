@@ -202,6 +202,12 @@ describe('buildUserMessage', () => {
     expect(msg).not.toContain('clarification_answers');
   });
 
+  it('gives a time the user gave as the time it was eaten', () => {
+    const msg = buildUserMessage('x', [], { time: '13:00', meal: 'lunch', given: true });
+    expect(msg).toContain('The user said they ate it at 13:00, which by the time is lunch (צהריים).');
+    expect(msg).not.toContain('Sent at');
+  });
+
   it('says the time means nothing for another day', () => {
     expect(buildUserMessage('x', [], null)).toContain('The entry is for another day');
   });

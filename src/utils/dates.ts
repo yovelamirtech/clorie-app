@@ -25,11 +25,16 @@ const weekdayFmt = new Intl.DateTimeFormat('he-IL', { weekday: 'long' });
 const shortFmt = new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'numeric' });
 const timeFmt = new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit' });
 
-/** "היום" / "אתמול" / "יום ה׳, 15 באוק׳" */
+export function tomorrowKey(): string {
+  return addDays(todayKey(), 1);
+}
+
+/** "היום" / "אתמול" / "מחר" / "יום ה׳, 15 באוק׳" */
 export function dayLabel(key: string): string {
   const today = todayKey();
   if (key === today) return 'היום';
   if (key === addDays(today, -1)) return 'אתמול';
+  if (key === addDays(today, 1)) return 'מחר';
   return fullFmt.format(fromDateKey(key));
 }
 
@@ -43,4 +48,18 @@ export function shortDate(key: string): string {
 
 export function timeLabel(iso: string): string {
   return timeFmt.format(new Date(iso));
+}
+
+/** Local "HH:MM" of an ISO time, as an `<input type="time">` value. */
+export function clockTime(iso: string): string {
+  const d = new Date(iso);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** ISO time of "HH:MM" local time on a day key. */
+export function atTime(key: string, hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number);
+  const d = fromDateKey(key);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
 }

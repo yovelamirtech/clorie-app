@@ -53,7 +53,7 @@ describe('buildBackup', () => {
   });
 
   it('round-trips through parseBackup', () => {
-    const d = data({ entries: [entry('e1', { mealType: 'breakfast' })], library: [libItem('l1', 'x', { mealTypes: ['snack'], unverified: true })] });
+    const d = data({ entries: [entry('e1', { mealType: 'breakfast' }), entry('e2', { planned: true, eatenAt: '2026-10-23T10:00:00.000Z' })], library: [libItem('l1', 'x', { mealTypes: ['snack'], unverified: true })] });
     const parsed = parseBackup(JSON.stringify(buildBackup(d)));
     expect(parsed.entries).toEqual(d.entries);
     expect(parsed.library).toEqual(d.library);
@@ -71,6 +71,8 @@ describe('parseBackup', () => {
     ['a newer version', file({ version: 2 }), 'גרסת הגיבוי אינה נתמכת.'],
     ['a library item without calories', file({ library: [{ id: 'a', name: 'a', unit: 'u', aliases: [] }] }), 'המאגר בקובץ פגום.'],
     ['an entry with a bad date', file({ entries: [entry('e', { date: '22/10/2026' })] }), 'הרישומים בקובץ פגומים.'],
+    ['an entry with a bad time', file({ entries: [entry('e', { eatenAt: 'later' })] }), 'הרישומים בקובץ פגומים.'],
+    ['an entry with a bad planned flag', file({ entries: [entry('e', { planned: 'yes' } as unknown as Partial<Entry>)] }), 'הרישומים בקובץ פגומים.'],
     ['an entry item without protein', file({ entries: [{ ...entry('e'), items: [{ id: 'i', name: 'x', calories: 1 }] }] }), 'הרישומים בקובץ פגומים.'],
   ])('rejects %s', (_, text, message) => {
     expect(() => parseBackup(text)).toThrow(message);
