@@ -4,6 +4,8 @@ import type { SuggestFlow } from '../hooks/suggestFlow';
 import { useStore } from '../store/store';
 import { todayKey } from '../utils/dates';
 import { sumCalories, sumProtein } from '../utils/common';
+import { learnMealType } from '../utils/meals';
+import { quickPickEntry, quickPicks, type QuickPick } from '../utils/quickPicks';
 import { Composer } from '../components/Composer';
 import { DateHeader } from '../components/DateHeader';
 import { DaySummary } from '../components/DaySummary';
@@ -12,6 +14,7 @@ import { Plus } from '../components/Icons';
 import { ManualEntryForm } from '../components/ManualEntryForm';
 import { MealSuggest } from '../components/MealSuggest';
 import { PendingCard } from '../components/PendingCard';
+import { QuickPicks } from '../components/QuickPicks';
 
 type Props = {
   date: string;
@@ -21,7 +24,7 @@ type Props = {
 };
 
 export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
-  const { entries, settings, actions } = useStore();
+  const { entries, library, settings, actions } = useStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [addingManual, setAddingManual] = useState(false);
@@ -31,6 +34,18 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
     [entries, date],
   );
   const allItems = dayEntries.flatMap((e) => e.items);
+  const picks = useMemo(() => quickPicks(entries, library, new Date()), [entries, library]);
+
+  const addPick = (pick: QuickPick): string => {
+    const entry = quickPickEntry(pick, date, new Date());
+    actions.addEntry(entry);
+    if (entry.mealType) {
+      const meal = entry.mealType;
+      actions.updateLibrary((l) => learnMealType(l, new Set([pick.libraryItemId]), meal));
+    }
+    setFlashId(entry.id);
+    return entry.id;
+  };
 
   // A freshly added entry opens and flashes briefly.
   const { lastAddedId, clearLastAdded } = flow;
@@ -100,7 +115,12 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
         />
       )}
 
-      <Composer value={flow.draft} onChange={flow.setDraft} onSend={() => flow.send(date)} />
+      <Composer
+        value={flow.draft}
+        onChange={flow.setDraft}
+        onSend={() => flow.send(date)}
+        top={<QuickPicks picks={picks} onPick={addPick} onUndo={actions.deleteEntry} />}
+      />
     </div>
   );
 }
