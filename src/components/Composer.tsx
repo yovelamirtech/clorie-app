@@ -1,13 +1,14 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { Send } from './Icons';
 
 type Props = {
   value: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  top?: ReactNode; // shown above the text box, inside the composer bar
 };
 
-export function Composer({ value, onChange, onSend }: Props) {
+export function Composer({ value, onChange, onSend, top }: Props) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
 
@@ -40,6 +41,7 @@ export function Composer({ value, onChange, onSend }: Props) {
       className="fixed inset-x-0 bottom-[var(--kb,0px)] z-20 pt-2 pr-[max(12px,env(safe-area-inset-right))] pb-[max(10px,env(safe-area-inset-bottom))] pl-[max(12px,env(safe-area-inset-left))] bg-[color-mix(in_srgb,var(--bg)_90%,transparent)] backdrop-blur-md border-t border-border [.kb-open_&]:pb-2"
       ref={wrap}
     >
+      {top}
       <div className="flex items-end gap-2 max-w-[576px] mx-auto">
         <textarea
           ref={ta}
