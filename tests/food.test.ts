@@ -113,6 +113,57 @@ describe('validateResult: library suggestions', () => {
   });
 });
 
+describe('validateResult: variants', () => {
+  const vlib: LibraryItem[] = [
+    ...lib,
+    {
+      id: 'burekas', name: 'בורקס גבינה', aliases: [], unit: 'יחידה', caloriesPerUnit: 200, updatedAt: '',
+      variants: [{ id: 'small', label: 'קטן', caloriesPerUnit: 200 }, { id: 'big', label: 'גדול', caloriesPerUnit: 350 }],
+    },
+  ];
+  const first = (extra: Record<string, unknown>, libraryItemId = 'burekas') => {
+    const res = validateResult({ status: 'ok', items: [{ name: 'בורקס', quantity: '1', calories: 350, protein: 8, libraryItemId, ...extra }] }, vlib);
+    if (res.status !== 'ok') throw new Error('expected ok');
+    return res.items[0];
+  };
+
+  it('reads a variant of the matched item', () => {
+    expect(first({ variantId: 'big' })).toMatchObject({ libraryItemId: 'burekas', variantId: 'big' });
+  });
+
+  it("drops a variant id the item doesn't have", () => {
+    expect(first({ variantId: 'huge' })).not.toHaveProperty('variantId');
+  });
+
+  it('reads a new variant, and takes a label the item already has as that variant', () => {
+    expect(first({ newVariantLabel: ' ענק ', caloriesPerUnit: 500.2, proteinPerUnit: 11.04 }).newVariant).toEqual({
+      label: 'ענק', caloriesPerUnit: 500, proteinPerUnit: 11, statedByUser: false,
+    });
+    const known = first({ newVariantLabel: 'גדול', caloriesPerUnit: 999 });
+    expect(known.variantId).toBe('big');
+    expect(known).not.toHaveProperty('newVariant');
+  });
+
+  it.each([
+    ['the label is "אחר"', { newVariantLabel: 'אחר', caloriesPerUnit: 300 }, 'burekas'],
+    ['calories are missing', { newVariantLabel: 'ענק' }, 'burekas'],
+    ['the item has no variants', { newVariantLabel: 'ענק', caloriesPerUnit: 300 }, 'egg'],
+  ])('no new variant when %s', (_, extra, libId) => {
+    const it = first(extra, libId);
+    expect(it).not.toHaveProperty('newVariant');
+    expect(it).not.toHaveProperty('variantId');
+  });
+
+  it('reads the variant label of a suggested library item', () => {
+    const res = validateResult(
+      { status: 'ok', items: [{ name: 'המבורגר', quantity: '1', calories: 550, protein: 25, saveToLibrary: true, libraryName: 'המבורגר', libraryUnit: 'מנה', libraryVariant: ' מקדונלדס ', caloriesPerUnit: 550, proteinPerUnit: 25 }] },
+      vlib,
+    );
+    if (res.status !== 'ok') throw new Error('expected ok');
+    expect(res.items[0].newLibraryItem).toMatchObject({ name: 'המבורגר', variant: 'מקדונלדס' });
+  });
+});
+
 describe('validateResult: needs_clarification', () => {
   it('normalizes questions and limits them to 4, with up to 4 options', () => {
     const questions = Array.from({ length: 5 }, (_, i) => ({
@@ -153,6 +204,13 @@ describe('buildUserMessage', () => {
 
   it('says the time means nothing for another day', () => {
     expect(buildUserMessage('x', [], null)).toContain('The entry is for another day');
+  });
+
+  it("sends an item's variants, and none for an item without them", () => {
+    const withVariants: LibraryItem[] = [{ ...lib[0], id: 'b', variants: [{ id: 'v1', label: 'קטן', caloriesPerUnit: 150 }] }, lib[0]];
+    const msg = buildUserMessage('x', withVariants, null);
+    expect(msg).toContain('"variants":[{"id":"v1","label":"קטן","caloriesPerUnit":150,"proteinPerUnit":null}]');
+    expect(msg.match(/"variants"/g)).toHaveLength(1);
   });
 
   it('sends a missing protein value as null', () => {

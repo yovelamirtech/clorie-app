@@ -90,6 +90,20 @@ describe('parseBackup', () => {
     expect(b.library[0]).toEqual(libItem('a', 'x', { mealTypes: ['lunch'] }));
     expect(b.entries[0]).not.toHaveProperty('mealType');
   });
+
+  it('keeps valid variants and drops broken ones', () => {
+    const good = { id: 'v1', label: 'קטן', caloriesPerUnit: 150, proteinPerUnit: 4, unverified: true };
+    const b = parseBackup(
+      file({
+        library: [
+          libItem('a', 'x', { variants: [good, { id: 'v2', label: 'גדול', caloriesPerUnit: 'many', extra: 1 }, { id: 'v3', label: 'ענק', caloriesPerUnit: 400, unverified: 'no' }] as never }),
+          libItem('b', 'x', { variants: [{ id: 'v4' }] as never }),
+        ],
+      }),
+    );
+    expect(b.library[0].variants).toEqual([good, { id: 'v3', label: 'ענק', caloriesPerUnit: 400 }]);
+    expect(b.library[1]).not.toHaveProperty('variants');
+  });
 });
 
 describe('mergeBackup', () => {

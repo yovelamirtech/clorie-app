@@ -65,7 +65,7 @@ export function useAddFlow() {
       }
       if (!replace(item, null)) return;
       const mealType = res.mealType ?? mealByTime(new Date(createdAt));
-      const { items, added } = withAutoLibrary(res.items, latest.current.library, mealType);
+      const { items, added, updated } = withAutoLibrary(res.items, latest.current.library, mealType);
       const entry: Entry = {
         id: uid(),
         date,
@@ -78,7 +78,10 @@ export function useAddFlow() {
       };
       latest.current.actions.addEntry(entry);
       const used = new Set(items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
-      if (used.size) latest.current.actions.updateLibrary((l) => learnMealType([...l, ...added], used, mealType));
+      if (used.size) {
+        const changed = new Map(updated.map((u) => [u.id, u]));
+        latest.current.actions.updateLibrary((l) => learnMealType([...l.map((x) => changed.get(x.id) ?? x), ...added], used, mealType));
+      }
       setLastAddedId(entry.id);
     },
     [replace],

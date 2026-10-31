@@ -10,6 +10,9 @@ import { ConfirmDialog, Dialog } from '../components/Dialog';
 import { Plus, Trash } from '../components/Icons';
 import { LibraryItemForm } from '../components/LibraryItemForm';
 
+/** Added automatically and not checked yet: the item itself, or one of its variants. */
+const isUnverified = (i: LibraryItem) => !!i.unverified || !!i.variants?.some((v) => v.unverified);
+
 /** Where classifying the library by meal stands; nothing when every item is classified. */
 function ClassifyStatusLine({ classifier, hasKey }: { classifier: MealClassifier; hasKey: boolean }) {
   const { status, job, unclassified, retry } = classifier;
@@ -55,15 +58,20 @@ function ClassifyStatusLine({ classifier, hasKey }: { classifier: MealClassifier
 export function LibraryScreen({ classifier }: { classifier: MealClassifier }) {
   const { library, settings, actions } = useStore();
   const [query, setQuery] = useState('');
+  const [onlyUnverified, setOnlyUnverified] = useState(false);
+  const unverifiedCount = library.filter(isUnverified).length;
+  const filtering = onlyUnverified && unverifiedCount > 0;
   const [editing, setEditing] = useState<LibraryItem | 'new' | null>(null);
   const [deleting, setDeleting] = useState<LibraryItem | null>(null);
 
   const list = useMemo(() => {
     const q = query.trim();
-    const sorted = [...library].sort((a, b) => a.name.localeCompare(b.name, 'he'));
+    const sorted = [...library].filter((i) => !filtering || isUnverified(i)).sort((a, b) => a.name.localeCompare(b.name, 'he'));
     if (!q) return sorted;
-    return sorted.filter((i) => i.name.includes(q) || i.aliases.some((a) => a.includes(q)) || i.note?.includes(q));
-  }, [library, query]);
+    return sorted.filter(
+      (i) => i.name.includes(q) || i.aliases.some((a) => a.includes(q)) || i.note?.includes(q) || i.variants?.some((v) => v.label.includes(q)),
+    );
+  }, [library, query, filtering]);
 
   return (
     <div className="pb-[calc(env(safe-area-inset-bottom)+32px)]">
@@ -73,6 +81,14 @@ export function LibraryScreen({ classifier }: { classifier: MealClassifier }) {
       </div>
       <p className="hint">הפריטים כאן נשלחים ל-AI בכל חישוב, והוא מעדיף אותם על פני ערכים כלליים.</p>
       <ClassifyStatusLine classifier={classifier} hasKey={!!settings.apiKey.trim()} />
+      {unverifiedCount > 0 && (
+        <div className="flex items-center gap-2 mt-2.5 chips-sm">
+          <button className={`chip ${filtering ? 'chip-on' : ''}`} aria-pressed={filtering} onClick={() => setOnlyUnverified(!filtering)}>
+            לא נבדקו ({unverifiedCount})
+          </button>
+          {filtering && <span className="text-[0.8rem] text-muted">פריטים שה-AI הוסיף לבד. פתח כל אחד, תקן אם צריך ושמור.</span>}
+        </div>
+      )}
 
       <ul className="list-none mt-3 p-0 flex flex-col gap-1.5">
         {list.map((i) => (
@@ -84,9 +100,14 @@ export function LibraryScreen({ classifier }: { classifier: MealClassifier }) {
               <span className="flex-1 min-w-0 flex flex-col">
                 <span className="font-medium">
                   {i.name}
-                  {i.unverified && <span className="badge badge-unverified">לא נבדק</span>}
+                  {isUnverified(i) && <span className="badge badge-unverified">לא נבדק</span>}
                 </span>
                 <span className="text-[0.85rem] text-muted">{i.unit}{i.note ? ` · ${i.note}` : ''}</span>
+                {!!i.variants?.length && (
+                  <span className="text-[0.8rem] text-muted">
+                    {i.variants.map((v) => `${v.label} ${fmtInt(v.caloriesPerUnit)}`).join(' · ')}
+                  </span>
+                )}
                 {i.aliases.length > 0 && <span className="text-[0.75rem] text-faint">{i.aliases.join(', ')}</span>}
                 {i.mealTypes && i.mealTypes.length > 0 && (
                   <span className="flex flex-wrap gap-1 mt-1">
@@ -94,19 +115,23 @@ export function LibraryScreen({ classifier }: { classifier: MealClassifier }) {
                   </span>
                 )}
               </span>
-              <span className="flex flex-col items-end flex-none">
-                <span className="num font-semibold">{fmtInt(i.caloriesPerUnit)}</span>
-                {i.proteinPerUnit !== undefined && <span className="num text-[0.75rem] text-muted">{fmt1(i.proteinPerUnit)} ג׳ חלבון</span>}
-              </span>
+              {i.variants?.length ? (
+                <span className="text-[0.75rem] text-muted flex-none">{i.variants.length} גרסאות</span>
+              ) : (
+                <span className="flex flex-col items-end flex-none">
+                  <span className="num font-semibold">{fmtInt(i.caloriesPerUnit)}</span>
+                  {i.proteinPerUnit !== undefined && <span className="num text-[0.75rem] text-muted">{fmt1(i.proteinPerUnit)} ג׳ חלבון</span>}
+                </span>
+              )}
             </button>
           </li>
         ))}
       </ul>
-      {list.length === 0 && <div className="text-center text-muted py-6 px-2">{query ? 'לא נמצאו פריטים.' : 'המאגר ריק.'}</div>}
+      {list.length === 0 && <div className="text-center text-muted py-6 px-2">{query || filtering ? 'לא נמצאו פריטים.' : 'המאגר ריק.'}</div>}
 
       {editing && (
         <Dialog title={editing === 'new' ? 'פריט חדש' : 'עריכת פריט'} onClose={() => setEditing(null)}>
-          {editing !== 'new' && editing.unverified && (
+          {editing !== 'new' && isUnverified(editing) && (
             <p className="hint">הפריט נוסף אוטומטית לפי הערכה של ה-AI ועוד לא נבדק. שמירה (גם בלי שינוי) תסמן אותו כבדוק.</p>
           )}
           <LibraryItemForm

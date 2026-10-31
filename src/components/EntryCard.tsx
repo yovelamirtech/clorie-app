@@ -102,9 +102,21 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
     // Calories were corrected by hand → offer to remember the value in the library.
     const per = perUnitFrom(item.quantity, calories, protein);
     const existing = item.libraryItemId ? library.find((l) => l.id === item.libraryItemId) : undefined;
-    const draft: LibraryDraft = existing
-      ? { ...existing, unit: per.unit, caloriesPerUnit: per.caloriesPerUnit, proteinPerUnit: per.proteinPerUnit }
-      : { name: item.name, aliases: [], ...per, ...(entry.mealType ? { mealTypes: [entry.mealType] } : {}) };
+    let draft: LibraryDraft;
+    if (existing?.variants?.length) {
+      // An item with variants: update the variant eaten, when the amount is in the item's unit; otherwise
+      // there's no single value to suggest.
+      const variant = existing.variants.find((v) => v.id === item.variantId);
+      if (!variant || per.unit !== existing.unit) return;
+      draft = {
+        ...existing,
+        variants: existing.variants.map((v) => (v === variant ? { ...v, caloriesPerUnit: per.caloriesPerUnit, proteinPerUnit: per.proteinPerUnit } : v)),
+      };
+    } else if (existing) {
+      draft = { ...existing, unit: per.unit, caloriesPerUnit: per.caloriesPerUnit, proteinPerUnit: per.proteinPerUnit };
+    } else {
+      draft = { name: item.name, aliases: [], ...per, ...(entry.mealType ? { mealTypes: [entry.mealType] } : {}) };
+    }
     setSuggestion({
       itemId: item.id,
       draft,

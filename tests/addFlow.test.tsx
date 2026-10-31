@@ -104,6 +104,26 @@ describe('useAddFlow, direct to Gemini', () => {
     expect(hook.result.current.store.entries[0].items[0]).toMatchObject({ libraryItemId: added?.id, addedToLibrary: true });
   });
 
+  it('adds a new version of a library food with variants to it', async () => {
+    const burekas: LibraryItem = {
+      id: 'burekas', name: 'בורקס גבינה', aliases: [], unit: 'יחידה', caloriesPerUnit: 200, mealTypes: ['breakfast'], updatedAt: '',
+      variants: [{ id: 'small', label: 'קטן', caloriesPerUnit: 200 }],
+    };
+    stubNetwork(() =>
+      gemini(okResult({
+        mealType: 'breakfast',
+        items: [{ name: 'בורקס גבינה', quantity: '1', calories: 380, protein: 9, libraryItemId: 'burekas', newVariantLabel: 'מאפיית השכונה', caloriesPerUnit: 380, proteinPerUnit: 9 }],
+      })),
+    );
+    const hook = await setup({}, [], [egg, burekas]);
+    await send(hook, 'בורקס גבינה מהמאפייה');
+    await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
+    const item = hook.result.current.store.library.find((i) => i.id === 'burekas');
+    expect(item?.variants?.map((v) => v.label)).toEqual(['קטן', 'מאפיית השכונה']);
+    expect(item?.variants?.[1]).toMatchObject({ caloriesPerUnit: 380, unverified: true });
+    expect(hook.result.current.store.entries[0].items[0]).toMatchObject({ libraryItemId: 'burekas', variantId: item?.variants?.[1].id });
+  });
+
   it('without a meal type in the answer, uses the time the message was sent', async () => {
     stubNetwork(() => gemini(okResult({ mealType: undefined })));
     const hook = await setup();
