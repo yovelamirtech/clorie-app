@@ -115,6 +115,8 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
         <button className="btn self-center text-muted" onClick={() => setAddingManual(true)}>
           <Plus size={18} /> הוסף רישום
         </button>
+
+        <QuickPicks picks={picks} onPick={addPick} onUndo={actions.deleteEntry} />
       </div>
 
       {addingManual && (
@@ -139,7 +141,6 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
         }}
         placeholder={isFuture ? 'מה תאכל מחר?' : 'מה אכלת?'}
         start={<TimeChip value={time} onChange={setTime} emptyLabel={isToday ? 'עכשיו' : 'שעה'} />}
-        top={<QuickPicks picks={picks} onPick={addPick} onUndo={actions.deleteEntry} />}
       />
     </div>
   );
