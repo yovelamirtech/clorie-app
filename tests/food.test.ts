@@ -208,6 +208,12 @@ describe('buildUserMessage', () => {
     expect(msg).not.toContain('Sent at');
   });
 
+  it('gives a meal the user marked', () => {
+    const msg = buildUserMessage('x', [], { meal: 'snack', marked: true });
+    expect(msg).toContain('The user marked the meal as snack (נשנוש).');
+    expect(msg).not.toContain('Sent at');
+  });
+
   it('says the time means nothing for another day', () => {
     expect(buildUserMessage('x', [], null)).toContain('The entry is for another day');
   });

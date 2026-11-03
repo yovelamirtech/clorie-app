@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { gemini, geminiBody, isRelay, json, LITE_MODEL, MAIN_MODEL, modelOf, RELAY_URL, stubNetwork } from './helpers/network';
-import type { LibraryItem, QueueItem, Settings } from '../src/types';
+import type { LibraryItem, MealType, QueueItem, Settings } from '../src/types';
 
 // An in-memory stand-in for IndexedDB.
 const kv = vi.hoisted(() => new Map<string, unknown>());
@@ -50,9 +50,9 @@ async function setup(s: Partial<Settings> = {}, queue: QueueItem[] = [], library
 
 type Hook = Awaited<ReturnType<typeof setup>>;
 
-async function send(hook: Hook, text: string, date = todayKey(), time: string | null = null) {
+async function send(hook: Hook, text: string, date = todayKey(), meal: MealType | null = null) {
   act(() => hook.result.current.flow.setDraft(text));
-  act(() => hook.result.current.flow.send(date, time));
+  act(() => hook.result.current.flow.send(date, meal));
 }
 
 beforeEach(() => kv.clear());
@@ -142,32 +142,30 @@ describe('useAddFlow, direct to Gemini', () => {
     expect(hook.result.current.store.entries[0].date).toBe(addDays(todayKey(), -1));
   });
 
-  it('with a time given, saves it and tells the AI it', async () => {
-    const calls = stubNetwork(() => gemini(okResult({ mealType: undefined })));
+  it('with a meal marked, tells the AI it and keeps it over the AI\'s', async () => {
+    const calls = stubNetwork(() => gemini(okResult({ mealType: 'lunch' })));
     const hook = await setup();
-    await send(hook, 'ביצה', todayKey(), '13:10');
+    await send(hook, 'ביצה', todayKey(), 'snack');
     await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
     const e = hook.result.current.store.entries[0];
-    const { atTime } = await import('../src/utils/dates');
-    expect(e.eatenAt).toBe(atTime(todayKey(), '13:10'));
-    expect(e.mealType).toBe('lunch');
+    expect(e.mealType).toBe('snack');
+    expect(e).not.toHaveProperty('eatenAt');
     expect(e).not.toHaveProperty('planned');
-    expect(calls[0].body).toContain('The user said they ate it at 13:10, which by the time is lunch');
+    expect(calls[0].body).toContain('The user marked the meal as snack');
   });
 
-  it("saves an entry for tomorrow as planned, keeping its time through a clarification", async () => {
+  it("saves an entry for tomorrow as planned, keeping its marked meal through a clarification", async () => {
     const replies = [gemini(question), gemini(okResult())];
     stubNetwork(() => replies.shift() ?? json({}, 500));
     const hook = await setup();
     const tomorrow = addDays(todayKey(), 1);
-    await send(hook, 'קופסה לצהריים', tomorrow, '12:45');
+    await send(hook, 'קופסה לצהריים', tomorrow, 'dinner');
     await waitFor(() => expect(hook.result.current.store.queue[0]?.phase).toBe('clarify'));
     expect(hook.result.current.store.queue[0]).toMatchObject({ planned: true });
 
     act(() => hook.result.current.flow.answer(hook.result.current.store.queue[0].id, [{ question: 'בשמן?', answer: 'לא' }]));
     await waitFor(() => expect(hook.result.current.store.entries).toHaveLength(1));
-    const { atTime } = await import('../src/utils/dates');
-    expect(hook.result.current.store.entries[0]).toMatchObject({ date: tomorrow, planned: true, eatenAt: atTime(tomorrow, '12:45') });
+    expect(hook.result.current.store.entries[0]).toMatchObject({ date: tomorrow, planned: true, mealType: 'dinner' });
   });
 
   it('asks a clarification question, then saves with the answers', async () => {

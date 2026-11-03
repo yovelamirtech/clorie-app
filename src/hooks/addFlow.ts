@@ -5,19 +5,20 @@ import { describeRelayFailure } from '../services/relayJobs';
 import { withAutoLibrary } from '../utils/autoLibrary';
 import { learnMealType, mealByTime, mealHintFor } from '../utils/meals';
 import { useStore } from '../store/store';
-import type { Clarification, Entry, QueueItem } from '../types';
+import type { Clarification, Entry, MealType, QueueItem } from '../types';
 import { uid } from '../utils/common';
-import { atTime, todayKey } from '../utils/dates';
+import { todayKey } from '../utils/dates';
 
 type Loading = Extract<QueueItem, { phase: 'loading' }>;
 
 /** The parts of a queue item that stay the same through every phase. */
-const base = ({ id, text, date, createdAt, eatenAt, planned }: QueueItem) => ({
+const base = ({ id, text, date, createdAt, eatenAt, mealType, planned }: QueueItem) => ({
   id,
   text,
   date,
   createdAt,
   ...(eatenAt ? { eatenAt } : {}),
+  ...(mealType ? { mealType } : {}),
   ...(planned ? { planned } : {}),
 });
 
@@ -75,7 +76,8 @@ export function useAddFlow() {
         return;
       }
       if (!replace(item, null)) return;
-      const mealType = res.mealType ?? mealByTime(new Date(eatenAt ?? createdAt));
+      // A meal the user marked wins over the AI's.
+      const mealType = item.mealType ?? res.mealType ?? mealByTime(new Date(eatenAt ?? createdAt));
       const { items, added, updated } = withAutoLibrary(res.items, latest.current.library, mealType);
       const entry: Entry = {
         id: uid(),
@@ -110,7 +112,7 @@ export function useAddFlow() {
       try {
         const { settings, library } = latest.current;
         const cfg = { apiKey: settings.apiKey, model: settings.model };
-        const hint = mealHintFor(item.date, item.createdAt, item.eatenAt);
+        const hint = mealHintFor(item.date, item.createdAt, item.eatenAt, item.mealType);
         const relay = relayConfig(settings);
 
         if (!relay) {
@@ -203,9 +205,9 @@ export function useAddFlow() {
     [actions, advance],
   );
 
-  /** `time` is "HH:MM" on `date` when the user gave one; null = now. An entry for tomorrow is planned. */
+  /** `meal` is the meal the user marked; null = by the time. An entry for tomorrow is planned. */
   const send = useCallback(
-    (date: string, time: string | null = null) => {
+    (date: string, meal: MealType | null = null) => {
       const text = draft.trim();
       if (!text) return;
       setDraft('');
@@ -214,7 +216,7 @@ export function useAddFlow() {
         text,
         date,
         createdAt: new Date().toISOString(),
-        ...(time ? { eatenAt: atTime(date, time) } : {}),
+        ...(meal ? { mealType: meal } : {}),
         ...(date > todayKey() ? { planned: true } : {}),
       }, false);
     },

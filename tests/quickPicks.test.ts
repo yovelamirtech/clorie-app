@@ -60,6 +60,16 @@ describe('quickPicks', () => {
     expect(quickPicks(entries, library, new Date(2026, 9, 22, 20, 0))[0].libraryItemId).toBe('schnitzel');
   });
 
+  it('favors foods eaten at a meal the user marked over the current one', () => {
+    const entries = [
+      entry('2026-10-19', 20, 'dinner', [['schnitzel', '3 יחידות', 225]]),
+      entry('2026-10-20', 20, 'dinner', [['schnitzel', '3 יחידות', 225]]),
+      entry('2026-10-21', 8, 'breakfast', [['milk', 'כוס', 144]]),
+    ];
+    expect(quickPicks(entries, library, NOW)[0].libraryItemId).toBe('milk');
+    expect(quickPicks(entries, library, NOW, 6, 'dinner')[0].libraryItemId).toBe('schnitzel');
+  });
+
   it('counts only the last 30 days', () => {
     const entries = [
       entry('2026-09-22', 8, 'breakfast', [['bread', 'פרוסה', 80]]),
@@ -82,9 +92,10 @@ describe('quickPicks', () => {
   });
 
   it('returns at most `limit` picks', () => {
-    const entries = [entry('2026-10-21', 8, 'breakfast', library.map((l): [string, string, number] => [l.id, 'יחידה', 50]))];
-    expect(quickPicks(entries, library, NOW)).toHaveLength(5);
-    expect(quickPicks(entries, library, NOW, 3)).toHaveLength(3);
+    const big = [...library, libItem('rice'), libItem('apple'), libItem('tuna')];
+    const entries = [entry('2026-10-21', 8, 'breakfast', big.map((l): [string, string, number] => [l.id, 'יחידה', 50]))];
+    expect(quickPicks(entries, big, NOW)).toHaveLength(6);
+    expect(quickPicks(entries, big, NOW, 3)).toHaveLength(3);
   });
 
   it('uses the most common quantity, valued as it was last logged, and the library name', () => {
@@ -162,10 +173,9 @@ describe('quickPickEntry', () => {
     expect(quickPickEntry(pick, '2026-10-22', NOW).items[0]).not.toHaveProperty('variantId');
   });
 
-  it('takes the meal from a time the user gave, and keeps the time', () => {
-    const at = new Date(2026, 9, 22, 13, 0).toISOString();
-    const e = quickPickEntry(pick, '2026-10-22', NOW, at);
-    expect(e).toMatchObject({ mealType: 'lunch', eatenAt: at });
+  it('takes the meal the user marked, even for a food mostly eaten as a snack', () => {
+    expect(quickPickEntry(pick, '2026-10-22', NOW, 'lunch').mealType).toBe('lunch');
+    expect(quickPickEntry({ ...pick, meal: 'snack' }, '2026-10-22', NOW, 'dinner').mealType).toBe('dinner');
     expect(quickPickEntry(pick, '2026-10-22', NOW)).not.toHaveProperty('eatenAt');
   });
 
