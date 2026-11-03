@@ -40,13 +40,12 @@ function mostCommon<T>(uses: Use[], pick: (u: Use) => T | undefined): T | undefi
 }
 
 /**
- * The library foods logged most in the last 30 days, favoring the ones eaten at the meal `now` falls in.
- * Each variant of a food counts as a food of its own. Each comes with its most common quantity, valued as
+ * The library foods logged most in the last 30 days, favoring the ones eaten at `meal` (by default, the
+ * meal `now` falls in). Each variant of a food counts as a food of its own. Each comes with its most common quantity, valued as
  * it was the last time it was logged that way.
  */
-export function quickPicks(entries: Entry[], library: LibraryItem[], now: Date, limit = 5): QuickPick[] {
+export function quickPicks(entries: Entry[], library: LibraryItem[], now: Date, limit = 6, meal: MealType = mealByTime(now)): QuickPick[] {
   const from = addDays(toDateKey(now), -(QUICK_PICK_DAYS - 1));
-  const meal = mealByTime(now);
   const byId = new Map(library.map((l) => [l.id, l]));
   const uses = new Map<string, Group>();
 
@@ -82,20 +81,20 @@ export function quickPicks(entries: Entry[], library: LibraryItem[], now: Date, 
       quantity,
       calories: latest.calories,
       protein: latest.protein,
-      meal: mostCommon(list, (u) => u.meal) ?? meal,
+      meal: mostCommon(list, (u) => u.meal) ?? mealByTime(now),
     };
   });
 }
 
 /**
- * The diary entry a quick pick adds, worked out without the AI. A food mostly eaten as a snack stays a
- * snack; otherwise the entry takes its meal from the time the user gave (`eatenAt`), today's from now,
- * and another day's from the food's habit. An entry for a later day is planned.
+ * The diary entry a quick pick adds, worked out without the AI. It takes the meal the user marked
+ * (`marked`); otherwise a food mostly eaten as a snack stays a snack, today's entry takes its meal from
+ * now, and another day's from the food's habit. An entry for a later day is planned.
  */
-export function quickPickEntry(pick: QuickPick, date: string, now: Date, eatenAt?: string): Entry {
+export function quickPickEntry(pick: QuickPick, date: string, now: Date, marked?: MealType): Entry {
   const mealType =
-    pick.meal === 'snack' ? 'snack'
-    : eatenAt ? mealByTime(new Date(eatenAt))
+    marked ? marked
+    : pick.meal === 'snack' ? 'snack'
     : date === toDateKey(now) ? mealByTime(now)
     : pick.meal;
   return {
@@ -117,7 +116,6 @@ export function quickPickEntry(pick: QuickPick, date: string, now: Date, eatenAt
     ],
     mealType,
     computedLocally: true,
-    ...(eatenAt ? { eatenAt } : {}),
     ...(date > toDateKey(now) ? { planned: true } : {}),
   };
 }

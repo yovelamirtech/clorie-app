@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { AddFlow } from '../hooks/addFlow';
 import type { SuggestFlow } from '../hooks/suggestFlow';
 import { useStore } from '../store/store';
-import { atTime, todayKey } from '../utils/dates';
+import type { MealType } from '../types';
+import { todayKey } from '../utils/dates';
 import { entryTime, sumCalories, sumProtein } from '../utils/common';
 import { learnMealType } from '../utils/meals';
 import { quickPickEntry, quickPicks, type QuickPick } from '../utils/quickPicks';
@@ -15,7 +16,7 @@ import { ManualEntryForm } from '../components/ManualEntryForm';
 import { MealSuggest } from '../components/MealSuggest';
 import { PendingCard } from '../components/PendingCard';
 import { QuickPicks } from '../components/QuickPicks';
-import { TimeChip } from '../components/TimeChip';
+import { MealTags } from '../components/MealTags';
 
 type Props = {
   date: string;
@@ -29,9 +30,9 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [addingManual, setAddingManual] = useState(false);
-  // The time for the next message or quick pick ("HH:MM"); null = now. Back to now on another day.
-  const [time, setTime] = useState<string | null>(null);
-  useEffect(() => setTime(null), [date]);
+  // The meal marked for the next message or quick pick; null = by the time. Cleared on another day.
+  const [meal, setMeal] = useState<MealType | null>(null);
+  useEffect(() => setMeal(null), [date]);
 
   const today = todayKey();
   const isToday = date === today;
@@ -43,11 +44,11 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
   );
   const eatenItems = dayEntries.filter((e) => !e.planned).flatMap((e) => e.items);
   const plannedCalories = sumCalories(dayEntries.filter((e) => e.planned).flatMap((e) => e.items));
-  const picks = useMemo(() => quickPicks(entries, library, new Date()), [entries, library]);
+  const picks = useMemo(() => quickPicks(entries, library, new Date(), undefined, meal ?? undefined), [entries, library, meal]);
 
   const addPick = (pick: QuickPick): string => {
-    const entry = quickPickEntry(pick, date, new Date(), time ? atTime(date, time) : undefined);
-    setTime(null);
+    const entry = quickPickEntry(pick, date, new Date(), meal ?? undefined);
+    setMeal(null);
     actions.addEntry(entry);
     if (entry.mealType) {
       const meal = entry.mealType;
@@ -136,11 +137,11 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
         value={flow.draft}
         onChange={flow.setDraft}
         onSend={() => {
-          flow.send(date, time);
-          setTime(null);
+          flow.send(date, meal);
+          setMeal(null);
         }}
         placeholder={isFuture ? 'מה תאכל מחר?' : 'מה אכלת?'}
-        start={<TimeChip value={time} onChange={setTime} emptyLabel={isToday ? 'עכשיו' : 'שעה'} />}
+        top={<MealTags value={meal} onChange={setMeal} />}
       />
     </div>
   );

@@ -63,6 +63,11 @@ describe('mealHintFor', () => {
   it('is null when the entry is for another day', () => {
     expect(mealHintFor('2026-10-21', at(8, 5).toISOString())).toBeNull();
   });
+
+  it('prefers a meal the user marked, on any day', () => {
+    expect(mealHintFor('2026-10-21', at(8, 5).toISOString(), undefined, 'dinner')).toEqual({ meal: 'dinner', marked: true });
+    expect(mealHintFor('2026-10-22', at(8, 5).toISOString(), undefined, 'snack')).toEqual({ meal: 'snack', marked: true });
+  });
 });
 
 describe('learnMealType', () => {

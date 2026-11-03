@@ -49,14 +49,15 @@ export function withoutMealPrefix(title: string): string {
 }
 
 /**
- * What the time says about an entry's meal: the time the user gave (`given`), else the time the message
- * was sent; null when that time isn't on the entry's day.
+ * What's known about an entry's meal: the meal the user marked (`marked`); else what the time says, by the
+ * time the user gave (`given`) or the time the message was sent; null when that time isn't on the entry's day.
  */
-export type MealHint = { time: string; meal: MainMeal; given?: true } | null;
+export type MealHint = { meal: MealType; marked: true } | { time: string; meal: MainMeal; given?: true } | null;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function mealHintFor(date: string, createdAt: string, eatenAt?: string): MealHint {
+export function mealHintFor(date: string, createdAt: string, eatenAt?: string, marked?: MealType): MealHint {
+  if (marked) return { meal: marked, marked: true };
   const at = new Date(eatenAt ?? createdAt);
   if (toDateKey(at) !== date) return null;
   return { time: `${pad(at.getHours())}:${pad(at.getMinutes())}`, meal: mealByTime(at), ...(eatenAt ? { given: true as const } : {}) };

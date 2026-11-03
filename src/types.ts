@@ -82,7 +82,8 @@ export type QueueItem = {
   date: string; // day the entry is for
   createdAt: string; // ISO
   answers?: Clarification[];
-  eatenAt?: string; // ISO; a time the user gave
+  eatenAt?: string; // ISO; a time the user gave (queued before meal tags replaced the time)
+  mealType?: MealType; // the meal the user marked
   planned?: boolean; // sent for tomorrow; the entry is saved as planned
 } & (
   | {
