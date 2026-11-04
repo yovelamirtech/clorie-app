@@ -231,17 +231,29 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
       )}
 
       {deleteItemId && (
-        <ConfirmDialog
-          title="למחוק את הפריט?"
-          message={entry.items.find((i) => i.id === deleteItemId)?.name}
-          confirmLabel="מחיקה"
-          danger
-          onCancel={() => setDeleteItemId(null)}
-          onConfirm={() => {
-            actions.updateEntry({ ...entry, items: entry.items.filter((i) => i.id !== deleteItemId) });
-            setDeleteItemId(null);
-          }}
-        />
+        // Deleting the only item deletes the entry, rather than leaving an empty one at 0 calories.
+        entry.items.length <= 1 ? (
+          <ConfirmDialog
+            title="למחוק את הרישום?"
+            message={`זה הפריט היחיד, אז "${title}" יימחק כולו.`}
+            confirmLabel="מחיקה"
+            danger
+            onCancel={() => setDeleteItemId(null)}
+            onConfirm={() => { setDeleteItemId(null); actions.deleteEntry(entry.id); }}
+          />
+        ) : (
+          <ConfirmDialog
+            title="למחוק את הפריט?"
+            message={entry.items.find((i) => i.id === deleteItemId)?.name}
+            confirmLabel="מחיקה"
+            danger
+            onCancel={() => setDeleteItemId(null)}
+            onConfirm={() => {
+              actions.updateEntry({ ...entry, items: entry.items.filter((i) => i.id !== deleteItemId) });
+              setDeleteItemId(null);
+            }}
+          />
+        )
       )}
 
       {suggestion && (
