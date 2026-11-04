@@ -1,6 +1,9 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { buildBackup, exportBackup, mergeBackup, parseBackup, replaceWithBackup, type Backup } from '../src/services/backup';
 import type { AppData } from '../src/services/db';
+import { withAutoLibrary } from '../src/utils/autoLibrary';
+import { toDateKey } from '../src/utils/dates';
+import { quickPicks } from '../src/utils/quickPicks';
 import type { Entry, LibraryItem, Settings } from '../src/types';
 
 const settings: Settings = {
@@ -224,5 +227,25 @@ describe('exportBackup', () => {
     expect(revoke).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1000);
     expect(revoke).toHaveBeenCalledWith('blob:backup');
+  });
+});
+
+describe('parseBackup, known bugs', () => {
+  const file = (entries: unknown[], library: unknown[]) => JSON.stringify({ app: 'calories-diary', version: 1, settings: {}, entries, library });
+  const lib = { id: 'a', name: 'ביצה', aliases: [], unit: 'יחידה', caloriesPerUnit: 73 };
+
+  // Quick picks run on every render of the main screen, and there's no error boundary: the app wouldn't open again.
+  it.fails('BUG: an item without a quantity can\'t crash the main screen', () => {
+    const b = parseBackup(file(
+      [{ id: 'e', date: toDateKey(new Date()), createdAt: new Date().toISOString(), title: 'x', items: [{ id: 'i', name: 'x', calories: 1, protein: 0, libraryItemId: 'a' }] }],
+      [lib],
+    ));
+    expect(() => quickPicks(b.entries, b.library, new Date())).not.toThrow();
+  });
+
+  it.fails('BUG: aliases that aren\'t text can\'t crash the name matching', () => {
+    const b = parseBackup(file([], [{ ...lib, aliases: [1] }]));
+    const item = { name: 'y', quantity: '1', calories: 1, protein: 0, newLibraryItem: { name: 'y', unit: 'u', caloriesPerUnit: 1, proteinPerUnit: 0, statedByUser: false } };
+    expect(() => withAutoLibrary([item], b.library, 'lunch')).not.toThrow();
   });
 });

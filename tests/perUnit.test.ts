@@ -169,3 +169,13 @@ describe('parseAmount: Hebrew words', () => {
     expect(parseAmount('כוס ורבע')?.amount).toBe(1.25);
   });
 });
+
+describe('amounts with a thousands separator, known bugs', () => {
+  it.fails('BUG: reads "1,000 גרם" as a thousand grams, not one', () => {
+    expect(perUnitFrom('1,000 גרם', 2000, 100)).toMatchObject({ unit: '100 גרם', caloriesPerUnit: 200 });
+  });
+
+  it.fails('BUG: parseAmount reads "1,000" as a thousand', () => {
+    expect(parseAmount('1,000 יחידות')?.amount).toBe(1000);
+  });
+});

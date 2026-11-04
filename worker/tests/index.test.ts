@@ -300,3 +300,21 @@ describe('jobs', () => {
     expect((await call(env, 'GET', `/jobs/${ID}`)).status).toBe(404);
   });
 });
+
+describe('known bugs', () => {
+  // The job holds the API key: bringing it back keeps the key on the server, and keeps calling the API, after the user cancelled.
+  it.fails('BUG: a job deleted while its attempt is on the way doesn\'t come back', async () => {
+    let answer: ((r: Response) => void) | undefined;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((resolve) => { answer = resolve; })));
+    const { env, jobs } = makeEnv();
+    const started = put(env, [upstream('main')]);
+    await vi.waitFor(() => expect(answer).toBeTruthy());
+
+    expect((await call(env, 'DELETE', `/jobs/${ID}`)).status).toBe(204);
+    answer!(new Response('', { status: 429 }));
+    await started.catch(() => {});
+
+    expect(jobs.get(ID)!.storage.data.has('job')).toBe(false);
+    expect(jobs.get(ID)!.storage.alarm).toBeNull();
+  });
+});

@@ -236,3 +236,43 @@ describe('buildUserMessage', () => {
     expect(msg).toContain('Do not ask again');
   });
 });
+
+describe('validateResult, known bugs', () => {
+  const asked = (...questions: unknown[]) => validateResult({ status: 'needs_clarification', questions }, lib);
+  const itemWith = (calories: unknown) => ({ status: 'ok', title: 'x', items: [{ name: 'x', quantity: '1', calories, protein: 0 }] });
+  const accepted = (calories: unknown): number | null => {
+    try {
+      const r = validateResult(itemWith(calories), lib);
+      return r.status === 'ok' ? r.items[0].calories : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // The prompt tells the AI to offer "אחר", and the clarification card always adds its own.
+  it.fails('BUG: leaves "אחר" to the card, so it doesn\'t show twice', () => {
+    const r = asked({ id: 'q1', question: 'איזה?', options: ['קטן', 'גדול', 'אחר'] });
+    expect(r.status === 'needs_clarification' && r.questions[0].options).toEqual(['קטן', 'גדול']);
+  });
+
+  // Answers are kept by question id, so answering one would answer both.
+  it.fails('BUG: gives questions with the same id different ids', () => {
+    const r = asked({ id: 'q', question: 'א?', options: [] }, { id: 'q', question: 'ב?', options: [] });
+    const ids = r.status === 'needs_clarification' ? r.questions.map((q) => q.id) : [];
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  // Each option is a button keyed by its text.
+  it.fails('BUG: drops repeated options', () => {
+    const r = asked({ id: 'q', question: 'א?', options: ['כן', 'כן', 'לא'] });
+    expect(r.status === 'needs_clarification' && r.questions[0].options).toEqual(['כן', 'לא']);
+  });
+
+  it.fails('BUG: doesn\'t take empty calories for 0', () => {
+    expect(accepted('')).toBeNull();
+  });
+
+  it.fails('BUG: reads calories of "1,200" as 1200, not 1', () => {
+    expect(accepted('1,200')).toBe(1200);
+  });
+});

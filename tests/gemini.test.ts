@@ -214,3 +214,17 @@ describe('testConnection', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('testConnection, odd answers', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('treats an answer that isn\'t JSON as invalid', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>', { status: 200 })));
+    await expect(testConnection({ apiKey: 'k', model: MAIN })).rejects.toMatchObject({ kind: 'invalid' });
+  });
+
+  it('passes when the answer lists no models at all', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 200 })));
+    await expect(testConnection({ apiKey: 'k', model: MAIN })).resolves.toBeUndefined();
+  });
+});

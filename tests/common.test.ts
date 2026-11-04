@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { entryCalories, fmt1, fmtInt, fmtSigned, parseNum, round1, sumCalories, sumProtein, uid } from '../src/utils/common';
 import type { Entry, EntryItem } from '../src/types';
 
@@ -70,5 +70,25 @@ describe('uid', () => {
   it('returns distinct ids', () => {
     const ids = new Set(Array.from({ length: 50 }, uid));
     expect(ids.size).toBe(50);
+  });
+});
+
+describe('uid', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('makes different ids', () => {
+    expect(uid()).not.toBe(uid());
+  });
+
+  it('works without crypto.randomUUID, as in an insecure context', () => {
+    vi.stubGlobal('crypto', {});
+    expect(uid()).toMatch(/^[0-9a-z]+-[0-9a-z]+$/);
+    expect(uid()).not.toBe(uid());
+  });
+});
+
+describe('parseNum, known bugs', () => {
+  it.fails('BUG: reads a comma before 3 digits as a thousands separator', () => {
+    expect(parseNum('2,000')).toBe(2000);
   });
 });

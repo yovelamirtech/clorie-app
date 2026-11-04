@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { gemini, geminiBody, isRelay, json, LITE_MODEL, MAIN_MODEL, modelOf, RELAY_URL, stubNetwork } from './helpers/network';
 import type { LibraryItem, MealType, QueueItem, Settings } from '../src/types';
 
@@ -416,5 +416,53 @@ describe('useAddFlow, through the relay', () => {
     });
     act(() => hook.result.current.flow.cancel(hook.result.current.store.queue[0].id));
     await waitFor(() => expect(calls.some((c) => c.method === 'DELETE')).toBe(true));
+  });
+});
+
+describe('useAddFlow, staying up to date', () => {
+  // Hooks from earlier tests are still mounted, and would answer these events too.
+  beforeEach(() => cleanup());
+
+  const relaySettings = { relayUrl: RELAY_URL, relayToken: 'pw' };
+  const waiting = (): QueueItem => ({ id: 'q', text: 'ביצה', date: todayKey(), createdAt: new Date().toISOString(), phase: 'loading', attempt: '0123456789abcdef', relay: { accepted: true, attempts: 1 } });
+  const queued = () => json({ state: 'queued', attempts: 1, nextAttemptAt: 0 });
+
+  it('without a key, a relay request ends in an error card', async () => {
+    const calls = stubNetwork(() => json({ error: 'unknown job' }, 404));
+    const hook = await setup({ ...relaySettings, apiKey: '' });
+    await send(hook, '2 ביצים');
+    await waitFor(() => expect(hook.result.current.store.queue[0]).toMatchObject({ phase: 'error', error: { kind: 'no_key' } }));
+    expect(calls).toEqual([]);
+  });
+
+  it('checks again when the app comes back to the front', async () => {
+    const calls = stubNetwork(queued);
+    await setup(relaySettings, [waiting()]);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await waitFor(async () => {
+      await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+      expect(calls.length).toBeGreaterThan(1);
+    });
+  });
+
+  it('doesn\'t check while the app is in the background', async () => {
+    const calls = stubNetwork(queued);
+    await setup(relaySettings, [waiting()]);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('stops checking once closed', async () => {
+    const calls = stubNetwork(queued);
+    const hook = await setup(relaySettings, [waiting()]);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    hook.unmount();
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(calls).toHaveLength(1);
   });
 });
