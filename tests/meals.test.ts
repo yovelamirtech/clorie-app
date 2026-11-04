@@ -143,3 +143,10 @@ describe('withoutMealPrefix', () => {
     expect(withoutMealPrefix('ארוחת ערב:')).toBe('ארוחת ערב:');
   });
 });
+
+describe('mealBudget, known bugs', () => {
+  // A budget of 0 is how the AI is told the user is over the target.
+  it.fails('BUG: a little left today isn\'t rounded down to "over the target"', () => {
+    expect(mealBudget('snack', 20, new Set()).calories).toBeGreaterThan(0);
+  });
+});

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { gemini, geminiBody, json, MAIN_MODEL, RELAY_URL, stubNetwork } from './helpers/network';
 import type { AiJobs, Settings } from '../src/types';
 
@@ -218,5 +218,35 @@ describe('useSuggestFlow, through the relay', () => {
     const hook = await setup(relaySettings, { suggest: waiting });
     await waitFor(() => expect(hook.result.current.store.jobs.suggest).toBeUndefined());
     await waitFor(() => expect(calls).toMatchObject([{ method: 'DELETE', url: `${RELAY_URL}/jobs/job-1` }]));
+  });
+});
+
+describe('useSuggestFlow, staying up to date', () => {
+  // Hooks from earlier tests are still mounted, and would answer these events too.
+  beforeEach(() => cleanup());
+
+  const relaySettings = { relayUrl: RELAY_URL, relayToken: 'pw' };
+  const waiting = (date = todayKey()): AiJobs => ({
+    suggest: { date, meal: 'lunch', budget: 600, reserved: [], remaining: 1400, options: [], seen: false, job: { id: '0123456789abcdef', mode: 'library', eatenToday: [], exclude: [] } },
+  });
+  const queued = () => json({ state: 'queued', attempts: 1, nextAttemptAt: 0 });
+
+  it('checks again when the app comes back to the front', async () => {
+    const calls = stubNetwork(queued);
+    await setup(relaySettings, waiting());
+    await waitFor(() => expect(calls).toHaveLength(1));
+    await waitFor(async () => {
+      await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+      expect(calls.length).toBeGreaterThan(1);
+    });
+  });
+
+  it('stops checking once closed', async () => {
+    const calls = stubNetwork(queued);
+    const hook = await setup(relaySettings, waiting());
+    await waitFor(() => expect(calls).toHaveLength(1));
+    hook.unmount();
+    await act(async () => { window.dispatchEvent(new Event('online')); });
+    expect(calls).toHaveLength(1);
   });
 });

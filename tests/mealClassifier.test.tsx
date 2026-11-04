@@ -174,3 +174,18 @@ describe('useMealClassifier, through the relay', () => {
     expect(hook.result.current.store.jobs.classify).toBeUndefined();
   });
 });
+
+describe('useMealClassifier, known bugs', () => {
+  it.fails('BUG: an answer for items deleted while it waited isn\'t a failure', async () => {
+    const answer = geminiBody({ items: [{ id: 'gone', mealTypes: ['snack'] }] });
+    stubNetwork(() => json({ state: 'done', attempts: 1, status: 200, body: answer }));
+    kv.clear();
+    kv.set('jobs', { classify: { id: '0123456789abcdef', itemIds: ['gone'] } });
+    kv.set('settings', settings({ relayUrl: RELAY_URL, relayToken: 'pw' }));
+    kv.set('library', [item('kept', { mealTypes: ['lunch'] })]);
+    const hook = renderHook(() => ({ classifier: useMealClassifier(), store: useStore() }), { wrapper: StoreProvider });
+    await waitFor(() => expect(hook.result.current?.store.jobs.classify).toBeUndefined());
+    await act(async () => {});
+    expect(hook.result.current.classifier.status).toEqual({ kind: 'idle' });
+  });
+});
