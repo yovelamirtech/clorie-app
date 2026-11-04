@@ -15,7 +15,9 @@ function ClarifyForm({ questions, onSubmit, onCancel }: {
   const [choice, setChoice] = useState<Record<string, string>>({});
   const [other, setOther] = useState<Record<string, string>>({});
 
-  const answerFor = (q: Question) => (choice[q.id] === OTHER ? (other[q.id] ?? '').trim() : choice[q.id]);
+  // An open question (no options) is answered in its text field, like "אחר".
+  const isOpen = (q: Question) => q.options.length === 0;
+  const answerFor = (q: Question) => (isOpen(q) || choice[q.id] === OTHER ? (other[q.id] ?? '').trim() : choice[q.id]);
   const complete = questions.every((q) => !!answerFor(q));
 
   return (
@@ -24,6 +26,14 @@ function ClarifyForm({ questions, onSubmit, onCancel }: {
       {questions.map((q) => (
         <div key={q.id} className="mt-3">
           <div className="mb-2">{q.question}</div>
+          {isOpen(q) ? (
+            <input
+              className="input"
+              placeholder="התשובה שלי…"
+              value={other[q.id] ?? ''}
+              onChange={(e) => setOther({ ...other, [q.id]: e.target.value })}
+            />
+          ) : (
           <div className="flex flex-wrap gap-1.5">
             {q.options.map((opt) => (
               <button
@@ -41,7 +51,8 @@ function ClarifyForm({ questions, onSubmit, onCancel }: {
               אחר
             </button>
           </div>
-          {choice[q.id] === OTHER && (
+          )}
+          {!isOpen(q) && choice[q.id] === OTHER && (
             <input
               className="input mt-2"
               autoFocus

@@ -126,7 +126,7 @@ const RESPONSE_SCHEMA = {
         properties: {
           id: { type: 'STRING' },
           question: { type: 'STRING', description: 'Short question in Hebrew' },
-          options: { type: 'ARRAY', items: { type: 'STRING' }, description: '2-4 short answer options in Hebrew' },
+          options: { type: 'ARRAY', items: { type: 'STRING' }, description: '2-4 short answer options in Hebrew, or empty for an open question' },
         },
         required: ['id', 'question', 'options'],
         propertyOrdering: ['id', 'question', 'options'],
