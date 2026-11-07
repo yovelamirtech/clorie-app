@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AiError, buildUserMessage, validateResult } from '../src/ai/food';
+import { AiError, SYSTEM_PROMPT, buildUserMessage, validateResult } from '../src/ai/food';
 import type { LibraryItem } from '../src/types';
 
 const lib: LibraryItem[] = [
@@ -188,6 +188,15 @@ describe('validateResult: needs_clarification', () => {
     expect(thrown(() => validateResult({ status: 'needs_clarification', questions: [] }, lib)).kind).toBe('invalid');
     expect(thrown(() => validateResult({ status: 'needs_clarification', questions: [null] }, lib)).kind).toBe('invalid');
     expect(thrown(() => validateResult({ status: 'needs_clarification', questions: [{ question: ' ' }] }, lib)).kind).toBe('invalid');
+  });
+});
+
+describe('SYSTEM_PROMPT: safety margin', () => {
+  it('asks for realistic estimates with one ~10% margin per item, not the upper part of every range', () => {
+    expect(SYSTEM_PROMPT).toContain('about 10% to the item');
+    expect(SYSTEM_PROMPT).toContain('once per item');
+    expect(SYSTEM_PROMPT).not.toContain('take the upper part of its realistic range');
+    expect(SYSTEM_PROMPT).not.toContain('generous regular stand portion');
   });
 });
 
