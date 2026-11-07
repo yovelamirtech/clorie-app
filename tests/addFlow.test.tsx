@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { gemini, geminiBody, isRelay, json, LITE_MODEL, MAIN_MODEL, modelOf, RELAY_URL, stubNetwork } from './helpers/network';
-import type { LibraryItem, MealType, QueueItem, Settings } from '../src/types';
+import type { Entry, LibraryItem, MealType, QueueItem, Settings } from '../src/types';
 
 // An in-memory stand-in for IndexedDB.
 const kv = vi.hoisted(() => new Map<string, unknown>());
@@ -464,5 +464,154 @@ describe('useAddFlow, staying up to date', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
     expect(calls).toHaveLength(1);
+  });
+});
+
+describe('useAddFlow, recalculating a day', () => {
+  const userText = (c: { body?: string }): string => JSON.parse(c.body ?? '{}').contents[0].parts[0].text;
+  const at = new Date(Date.now() - 3600_000).toISOString();
+  const old = (id: string, extra: Partial<Entry> = {}): Entry => ({
+    id,
+    date: todayKey(),
+    createdAt: at,
+    originalText: `טקסט ${id}`,
+    title: 'ישן',
+    items: [{ id: `${id}-i`, name: 'ביצים', quantity: '2', calories: 300, protein: 12 }],
+    mealType: 'breakfast',
+    ...extra,
+  });
+
+  async function setupWith(entries: Entry[], library: LibraryItem[] = [egg], s: Partial<Settings> = {}) {
+    kv.set('entries', entries);
+    return setup(s, [], library);
+  }
+
+  it('sends the day\'s entries again and replaces their items in place', async () => {
+    const calls = stubNetwork(() => gemini(okResult()));
+    const answers = [{ question: 'בשמן?', answer: 'כן' }];
+    const hook = await setupWith([
+      old('a', { clarifications: answers, planned: true, eatenAt: at }),
+      old('b', { date: addDays(todayKey(), -1) }),
+    ]);
+    let sent = 0;
+    act(() => void (sent = hook.result.current.flow.recalc(todayKey())));
+    expect(sent).toBe(1);
+    await waitFor(() => expect(hook.result.current.store.entries.find((e) => e.id === 'a')?.title).toBe('חביתה'));
+
+    const { entries, queue } = hook.result.current.store;
+    expect(entries).toHaveLength(2);
+    expect(entries.find((e) => e.id === 'a')).toMatchObject({
+      createdAt: at, eatenAt: at, planned: true, originalText: 'טקסט a', clarifications: answers,
+      // The meal it had is kept, as if marked.
+      mealType: 'breakfast',
+      items: [{ name: 'ביצים', calories: 146, libraryItemId: 'egg' }],
+    });
+    expect(entries.find((e) => e.id === 'b')?.title).toBe('ישן');
+    expect(queue).toEqual([]);
+    expect(hook.result.current.flow.lastAddedId).toBeNull();
+    expect(calls).toHaveLength(1);
+    // With the answers it was given, and the meal it had.
+    expect(userText(calls[0])).toContain('A: כן');
+    expect(userText(calls[0])).toContain('The user marked the meal as breakfast');
+  });
+
+  it('leaves out entries changed by hand, worked out without the AI, or already on their way', async () => {
+    const calls = stubNetwork(() => gemini(okResult()));
+    const hook = await setupWith([
+      old('edited', { items: [{ id: 'x', name: 'ביצים', quantity: '2', calories: 100, protein: 12, editedByUser: true }] }),
+      old('deleted', { editedByUser: true }),
+      old('pick', { computedLocally: true }),
+      old('manual', { originalText: '' }),
+      old('ok'),
+    ]);
+    let sent = 0;
+    act(() => void (sent = hook.result.current.flow.recalc(todayKey())));
+    expect(sent).toBe(1);
+    act(() => void (sent = hook.result.current.flow.recalc(todayKey())));
+    expect(sent).toBe(0);
+    await waitFor(() => expect(hook.result.current.store.entries.find((e) => e.id === 'ok')?.title).toBe('חביתה'));
+    expect(calls).toHaveLength(1);
+    expect(hook.result.current.store.entries.filter((e) => e.title === 'ישן')).toHaveLength(4);
+  });
+
+  it('updates the unverified library foods the entry added, instead of sending them as a reference', async () => {
+    const ham: LibraryItem = { id: 'ham', name: 'האם', aliases: [], unit: '100 גרם', caloriesPerUnit: 240, unverified: true, mealTypes: ['lunch'], updatedAt: '' };
+    const calls = stubNetwork(() =>
+      gemini(okResult({
+        items: [{ name: 'Ham', quantity: '50 גרם', calories: 61, protein: 9, saveToLibrary: true, libraryName: 'האם', libraryUnit: '100 גרם', caloriesPerUnit: 110, proteinPerUnit: 17 }],
+      })),
+    );
+    const hook = await setupWith(
+      [old('a', { items: [{ id: 'i', name: 'Ham', quantity: '50 גרם', calories: 120, protein: 9, libraryItemId: 'ham', addedToLibrary: true }] })],
+      [egg, ham],
+    );
+    act(() => void hook.result.current.flow.recalc(todayKey()));
+    await waitFor(() => expect(hook.result.current.store.entries[0].items[0].calories).toBe(61));
+
+    expect(userText(calls[0])).toContain('"id":"egg"');
+    expect(userText(calls[0])).not.toContain('"id":"ham"');
+    const { library, entries } = hook.result.current.store;
+    expect(library).toHaveLength(2);
+    expect(library.find((l) => l.id === 'ham')).toMatchObject({ caloriesPerUnit: 110, proteinPerUnit: 17, unverified: true });
+    expect(entries[0].items[0]).toMatchObject({ libraryItemId: 'ham', addedToLibrary: true });
+  });
+
+  it('keeps a verified library food as a reference', async () => {
+    const ham: LibraryItem = { id: 'ham', name: 'האם', aliases: [], unit: '100 גרם', caloriesPerUnit: 240, updatedAt: '' };
+    const calls = stubNetwork(() => gemini(okResult()));
+    const hook = await setupWith(
+      [old('a', { items: [{ id: 'i', name: 'Ham', quantity: '50 גרם', calories: 120, protein: 9, libraryItemId: 'ham', addedToLibrary: true }] })],
+      [egg, ham],
+    );
+    act(() => void hook.result.current.flow.recalc(todayKey()));
+    await waitFor(() => expect(hook.result.current.store.entries[0].title).toBe('חביתה'));
+    expect(userText(calls[0])).toContain('"id":"ham"');
+  });
+
+  it('asks a new question on a card, and the entry stays until it\'s answered', async () => {
+    let asked = false;
+    stubNetwork(() => {
+      if (asked) return gemini(okResult());
+      asked = true;
+      return gemini(question);
+    });
+    const hook = await setupWith([old('a')]);
+    act(() => void hook.result.current.flow.recalc(todayKey()));
+    await waitFor(() => expect(hook.result.current.store.queue[0]?.phase).toBe('clarify'));
+    const card = hook.result.current.store.queue[0];
+    expect(card.recalcOf).toBe('a');
+    expect(hook.result.current.store.entries[0].title).toBe('ישן');
+
+    act(() => hook.result.current.flow.answer(card.id, [{ question: 'בשמן?', answer: 'לא' }]));
+    await waitFor(() => expect(hook.result.current.store.entries[0].title).toBe('חביתה'));
+    expect(hook.result.current.store.entries).toHaveLength(1);
+    expect(hook.result.current.store.entries[0].clarifications).toEqual([{ question: 'בשמן?', answer: 'לא' }]);
+  });
+
+  it('cancelling keeps the entry and doesn\'t put its text in the composer', async () => {
+    stubNetwork(() => gemini(question));
+    const hook = await setupWith([old('a')]);
+    act(() => void hook.result.current.flow.recalc(todayKey()));
+    await waitFor(() => expect(hook.result.current.store.queue[0]?.phase).toBe('clarify'));
+    act(() => hook.result.current.flow.cancel(hook.result.current.store.queue[0].id));
+    expect(hook.result.current.store.queue).toEqual([]);
+    expect(hook.result.current.flow.draft).toBe('');
+    expect(hook.result.current.store.entries[0].title).toBe('ישן');
+  });
+
+  it('drops the result when the entry was deleted or changed by hand meanwhile', async () => {
+    stubNetwork(() => gemini(question));
+    const hook = await setupWith([old('a'), old('b')]);
+    act(() => void hook.result.current.flow.recalc(todayKey()));
+    await waitFor(() => expect(hook.result.current.store.queue.filter((q) => q.phase === 'clarify')).toHaveLength(2));
+    const { actions, entries } = hook.result.current.store;
+    act(() => actions.deleteEntry('a'));
+    act(() => actions.updateEntry({ ...entries[1], editedByUser: true }));
+
+    stubNetwork(() => gemini(okResult()));
+    for (const q of hook.result.current.store.queue) act(() => hook.result.current.flow.answer(q.id, [{ question: 'בשמן?', answer: 'לא' }]));
+    await waitFor(() => expect(hook.result.current.store.queue).toEqual([]));
+    expect(hook.result.current.store.entries).toHaveLength(1);
+    expect(hook.result.current.store.entries[0]).toMatchObject({ id: 'b', title: 'ישן' });
   });
 });

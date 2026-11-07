@@ -2,17 +2,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AiError, FALL_BACK_ON, analyzeFood, buildAnalyzeRequestChain, nextModelInChain, parseAnalyzeResponse, type FoodResult } from '../ai';
 import { RelayError, deleteJob, getJob, putJob, relayConfig } from '../services/relay';
 import { describeRelayFailure } from '../services/relayJobs';
-import { withAutoLibrary } from '../utils/autoLibrary';
+import { refreshStale, withAutoLibrary } from '../utils/autoLibrary';
 import { learnMealType, mealByTime, mealHintFor } from '../utils/meals';
 import { useStore } from '../store/store';
-import type { Clarification, Entry, MealType, QueueItem } from '../types';
+import type { Clarification, Entry, LibraryItem, MealType, QueueItem } from '../types';
 import { uid } from '../utils/common';
 import { todayKey } from '../utils/dates';
 
 type Loading = Extract<QueueItem, { phase: 'loading' }>;
 
 /** The parts of a queue item that stay the same through every phase. */
-const base = ({ id, text, date, createdAt, eatenAt, mealType, planned }: QueueItem) => ({
+const base = ({ id, text, date, createdAt, eatenAt, mealType, planned, recalcOf, skipLibrary }: QueueItem) => ({
   id,
   text,
   date,
@@ -20,7 +20,17 @@ const base = ({ id, text, date, createdAt, eatenAt, mealType, planned }: QueueIt
   ...(eatenAt ? { eatenAt } : {}),
   ...(mealType ? { mealType } : {}),
   ...(planned ? { planned } : {}),
+  ...(recalcOf ? { recalcOf } : {}),
+  ...(skipLibrary?.length ? { skipLibrary } : {}),
 });
+
+/** An entry the AI worked out from its text that the user hasn't changed by hand, so it can be recalculated. */
+export const canRecalc = (e: Entry) =>
+  !!e.originalText.trim() && !e.computedLocally && !e.editedByUser && !e.items.some((i) => i.editedByUser);
+
+/** The library sent with a request: without the stale items a recalculation leaves out. */
+const libraryFor = (item: QueueItem, library: LibraryItem[]) =>
+  item.skipLibrary?.length ? library.filter((l) => !item.skipLibrary!.includes(l.id)) : library;
 
 /** How often waiting requests are checked while the app is open. */
 const TICK_MS = 5000;
@@ -38,13 +48,13 @@ const toError = (e: unknown) => {
  * the app collects the answer the next time it's open.
  */
 export function useAddFlow() {
-  const { settings, library, queue, actions } = useStore();
+  const { settings, library, entries, queue, actions } = useStore();
   const [draft, setDraft] = useState('');
   const [lastAddedId, setLastAddedId] = useState<string | null>(null);
 
   // Keep the latest store values for async callbacks.
-  const latest = useRef({ settings, library, queue, actions });
-  latest.current = { settings, library, queue, actions };
+  const latest = useRef({ settings, library, entries, queue, actions });
+  latest.current = { settings, library, entries, queue, actions };
   const inFlight = useRef(new Set<string>());
 
   /** Replace the item if it's still on this attempt (it may have been cancelled meanwhile). */
@@ -78,26 +88,39 @@ export function useAddFlow() {
       if (!replace(item, null)) return;
       // A meal the user marked wins over the AI's.
       const mealType = item.mealType ?? res.mealType ?? mealByTime(new Date(eatenAt ?? createdAt));
-      const { items, added, updated } = withAutoLibrary(res.items, latest.current.library, mealType);
-      const entry: Entry = {
-        id: uid(),
-        date,
-        createdAt,
-        originalText: text,
-        title: res.title,
-        items,
-        ...(answers?.length ? { clarifications: answers } : {}),
-        mealType,
-        ...(eatenAt ? { eatenAt } : {}),
-        ...(planned ? { planned: true } : {}),
-      };
-      latest.current.actions.addEntry(entry);
+      const { library, entries } = latest.current;
+      const old = item.recalcOf ? entries.find((e) => e.id === item.recalcOf) : undefined;
+      // The entry was deleted or changed by hand while it was being recalculated: keep it as it is.
+      if (item.recalcOf && (!old || !canRecalc(old))) return;
+      const auto = withAutoLibrary(res.items, libraryFor(item, library), mealType);
+      const stale = library.filter((l) => item.skipLibrary?.includes(l.id));
+      const { items, added, updated } = old ? refreshStale(auto, stale, old.items) : auto;
+      if (old) {
+        // A recalculation keeps the entry (its id, time and planned state) and replaces what the AI worked out.
+        const next: Entry = { ...old, title: res.title, items, mealType };
+        if (answers?.length) next.clarifications = answers;
+        latest.current.actions.updateEntry(next);
+      } else {
+        const entry: Entry = {
+          id: uid(),
+          date,
+          createdAt,
+          originalText: text,
+          title: res.title,
+          items,
+          ...(answers?.length ? { clarifications: answers } : {}),
+          mealType,
+          ...(eatenAt ? { eatenAt } : {}),
+          ...(planned ? { planned: true } : {}),
+        };
+        latest.current.actions.addEntry(entry);
+        setLastAddedId(entry.id);
+      }
       const used = new Set(items.flatMap((i) => (i.libraryItemId ? [i.libraryItemId] : [])));
       if (used.size) {
         const changed = new Map(updated.map((u) => [u.id, u]));
         latest.current.actions.updateLibrary((l) => learnMealType([...l.map((x) => changed.get(x.id) ?? x), ...added], used, mealType));
       }
-      setLastAddedId(entry.id);
     },
     [replace],
   );
@@ -110,7 +133,8 @@ export function useAddFlow() {
       if (item.relay?.accepted && item.relay.nextAttemptAt && Date.now() < item.relay.nextAttemptAt + 2000) return;
       inFlight.current.add(item.attempt);
       try {
-        const { settings, library } = latest.current;
+        const { settings } = latest.current;
+        const library = libraryFor(item, latest.current.library);
         const cfg = { apiKey: settings.apiKey, model: settings.model };
         const hint = mealHintFor(item.date, item.createdAt, item.eatenAt, item.mealType);
         const relay = relayConfig(settings);
@@ -160,7 +184,7 @@ export function useAddFlow() {
         if (status.state === 'done') {
           deleteJob(relay, item.attempt);
           const { status: code, body } = status;
-          settle(item, () => parseAnalyzeResponse(code, body, latest.current.library, item.answers));
+          settle(item, () => parseAnalyzeResponse(code, body, libraryFor(item, latest.current.library), item.answers));
         } else {
           replace(item, {
             ...item,
@@ -244,7 +268,41 @@ export function useAddFlow() {
     [start],
   );
 
-  /** Drop the card (a waiting request is withdrawn) and put the text back in the composer. */
+  /**
+   * Send the day's entries to the AI again (e.g. after a change in how it estimates), each with the answers
+   * it was given. Each result replaces its entry's items in place. Entries changed by hand, entries worked
+   * out without the AI and entries already on their way are left out. Returns how many were sent.
+   */
+  const recalc = useCallback(
+    (date: string): number => {
+      const { entries, library, queue } = latest.current;
+      const busy = new Set(queue.flatMap((q) => (q.recalcOf ? [q.recalcOf] : [])));
+      const unverified = new Set(library.filter((l) => l.unverified).map((l) => l.id));
+      const targets = entries.filter((e) => e.date === date && canRecalc(e) && !busy.has(e.id));
+      for (const e of targets) {
+        const skip = [...new Set(e.items.flatMap((i) => (i.addedToLibrary && i.libraryItemId && unverified.has(i.libraryItemId) ? [i.libraryItemId] : [])))];
+        start({
+          id: uid(),
+          text: e.originalText,
+          date: e.date,
+          createdAt: e.createdAt,
+          ...(e.eatenAt ? { eatenAt: e.eatenAt } : {}),
+          ...(e.mealType ? { mealType: e.mealType } : {}),
+          ...(e.planned ? { planned: true } : {}),
+          ...(e.clarifications?.length ? { answers: e.clarifications } : {}),
+          recalcOf: e.id,
+          ...(skip.length ? { skipLibrary: skip } : {}),
+        }, false);
+      }
+      return targets.length;
+    },
+    [start],
+  );
+
+  /**
+   * Drop the card (a waiting request is withdrawn) and put the text back in the composer. A recalculation
+   * is just dropped: its entry stays as it was.
+   */
   const cancel = useCallback(
     (id: string) => {
       const item = find(id);
@@ -252,14 +310,14 @@ export function useAddFlow() {
       const relay = relayConfig(latest.current.settings);
       if (item.phase === 'loading' && item.relay?.accepted && relay) deleteJob(relay, item.attempt);
       actions.updateQueue((q) => q.filter((x) => x.id !== id));
-      setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${item.text}` : item.text));
+      if (!item.recalcOf) setDraft((d) => (d.trim() ? `${d.trimEnd()}\n${item.text}` : item.text));
     },
     [actions],
   );
 
   const clearLastAdded = useCallback(() => setLastAddedId(null), []);
 
-  return { draft, setDraft, queue, send, retry, answer, cancel, lastAddedId, clearLastAdded };
+  return { draft, setDraft, queue, send, recalc, retry, answer, cancel, lastAddedId, clearLastAdded };
 }
 
 export type AddFlow = ReturnType<typeof useAddFlow>;

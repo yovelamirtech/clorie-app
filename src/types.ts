@@ -64,6 +64,7 @@ export type Entry = {
   computedLocally?: boolean; // worked out from the library alone, without the AI (quick picks, and older entries)
   eatenAt?: string; // ISO; a time the user gave. Unset = createdAt
   planned?: boolean; // logged ahead for tomorrow: not counted until the user confirms they ate it
+  editedByUser?: boolean; // the user deleted an item by hand (edited items are marked on the item itself)
 };
 
 /** Relay progress of a queued request. */
@@ -85,6 +86,8 @@ export type QueueItem = {
   eatenAt?: string; // ISO; a time the user gave (queued before meal tags replaced the time)
   mealType?: MealType; // the meal the user marked
   planned?: boolean; // sent for tomorrow; the entry is saved as planned
+  recalcOf?: string; // id of the entry this recalculates; its result replaces that entry's items
+  skipLibrary?: string[]; // unverified library items that entry added: left out of the request, then updated
 } & (
   | {
       phase: 'loading';

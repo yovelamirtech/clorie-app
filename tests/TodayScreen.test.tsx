@@ -278,4 +278,48 @@ describe('TodayScreen', () => {
       expect(first()).toMatch(/^ערבי/);
     });
   });
+
+  describe('recalculating the day', () => {
+    it('offers it only for entries the AI worked out and nobody changed', async () => {
+      await setup({ entries: [entry('pick', { computedLocally: true }), entry('edited', { editedByUser: true })] });
+      expect(screen.queryByRole('button', { name: /חישוב מחדש/ })).toBeNull();
+    });
+
+    it('asks first, then sends the entries again and replaces them', async () => {
+      const calls = stubNetwork(() => gemini(okResult));
+      const { store } = await setup({ entries: [entry('a', { title: 'ישן' }), entry('b', { title: 'ישן', computedLocally: true })] });
+      fireEvent.click(btn(/חישוב מחדש/));
+      const dialog = screen.getByRole('dialog', { name: 'לחשב מחדש את היום?' });
+      expect(dialog.textContent).toContain('רישום אחד יישלח');
+      expect(calls).toHaveLength(0);
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'ביטול' }));
+      expect(calls).toHaveLength(0);
+
+      fireEvent.click(btn(/חישוב מחדש/));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'חישוב מחדש' }));
+      await vi.waitFor(() => expect(store().entries.find((e) => e.id === 'a')?.title).toBe('חביתה'));
+      expect(calls).toHaveLength(1);
+      expect(store().entries).toHaveLength(2);
+      // The new result can be recalculated again.
+      expect(btn(/חישוב מחדש/)).toBeTruthy();
+    });
+
+    it('hides the button while the entries are on their way, and marks their cards', async () => {
+      stubNetwork(() => gemini({ status: 'needs_clarification', questions: [{ id: 'q1', question: 'בשמן?', options: ['כן', 'לא'] }] }));
+      await setup({ entries: [entry('a')] });
+      fireEvent.click(btn(/חישוב מחדש/));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'חישוב מחדש' }));
+      await vi.waitFor(() => expect(screen.getByText('בשמן?')).toBeTruthy());
+      expect(screen.queryByRole('button', { name: /חישוב מחדש/ })).toBeNull();
+      expect(screen.getByText('חישוב מחדש')).toBeTruthy();
+    });
+
+    it('names another day as such, and counts several entries', async () => {
+      await setup({ entries: [entry('a', { date: YESTERDAY }), entry('b', { date: YESTERDAY })] }, YESTERDAY);
+      fireEvent.click(btn(/חישוב מחדש/));
+      const dialog = screen.getByRole('dialog', { name: 'לחשב מחדש את היום הזה?' });
+      expect(dialog.textContent).toContain('2 רישומים יישלחו');
+    });
+  });
 });

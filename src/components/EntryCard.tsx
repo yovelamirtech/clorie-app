@@ -249,7 +249,8 @@ export function EntryCard({ entry, expanded, highlight, onToggle }: {
             danger
             onCancel={() => setDeleteItemId(null)}
             onConfirm={() => {
-              actions.updateEntry({ ...entry, items: entry.items.filter((i) => i.id !== deleteItemId) });
+              // Marked as changed by hand, so recalculating the day doesn't bring the item back.
+              actions.updateEntry({ ...entry, items: entry.items.filter((i) => i.id !== deleteItemId), editedByUser: true });
               setDeleteItemId(null);
             }}
           />

@@ -75,3 +75,81 @@ export function withAutoLibrary(
   });
   return { items, added, updated: [...updated.values()] };
 }
+
+type AutoLibraryResult = ReturnType<typeof withAutoLibrary>;
+
+/** `stale` with the values of `fresh`, keeping its id, meals and variant ids; new variant ids map to old ones in `variantIds`. */
+function refreshed(stale: LibraryItem, fresh: LibraryItem, variantIds: Map<string, string>): LibraryItem {
+  const aliases = [
+    ...stale.aliases,
+    ...fresh.aliases.filter((a) => norm(a) !== norm(stale.name) && !stale.aliases.some((b) => norm(b) === norm(a))),
+  ];
+  let variants = stale.variants;
+  if (fresh.variants?.length) {
+    variants = [...(stale.variants ?? [])];
+    for (const v of fresh.variants) {
+      const i = variants.findIndex((x) => norm(x.label) === norm(v.label));
+      if (i < 0) {
+        variants.push(v);
+        continue;
+      }
+      variantIds.set(v.id, variants[i].id);
+      variants[i] = { ...v, id: variants[i].id };
+    }
+  }
+  // An item with variants carries its first variant's values.
+  const first = variants?.[0];
+  const next: LibraryItem = {
+    ...stale,
+    aliases,
+    unit: fresh.unit,
+    caloriesPerUnit: first ? first.caloriesPerUnit : fresh.caloriesPerUnit,
+    proteinPerUnit: first ? first.proteinPerUnit : fresh.proteinPerUnit,
+    ...(variants ? { variants } : {}),
+    updatedAt: fresh.updatedAt,
+  };
+  if (fresh.unverified) next.unverified = true;
+  else delete next.unverified;
+  return next;
+}
+
+/**
+ * For a recalculated entry: the unverified library items the entry had added (`stale`) were left out of the
+ * request, so the AI suggests them again as new foods. Instead of adding duplicates, each stale item takes
+ * the new values in place and the items link to it. A stale item matches by the suggested name or the
+ * item's name, against its name, its aliases and the names of the old entry's items that linked to it.
+ * A stale item with variants takes only a suggestion with a version; otherwise it's just linked, unchanged.
+ */
+export function refreshStale(result: AutoLibraryResult, stale: LibraryItem[], oldItems: EntryItem[]): AutoLibraryResult {
+  if (!stale.length) return result;
+  const ids = new Map<string, string>(); // new library item id → stale item id
+  const variantIds = new Map<string, string>();
+  const changed = new Map<string, LibraryItem>();
+  const names = (l: LibraryItem) =>
+    [l.name, ...l.aliases, ...oldItems.filter((i) => i.libraryItemId === l.id).map((i) => i.name)].map(norm);
+
+  for (const item of result.items) {
+    const fresh = item.addedToLibrary ? result.added.find((a) => a.id === item.libraryItemId) : undefined;
+    if (!fresh || ids.has(fresh.id)) continue;
+    const match = stale.find((s) => !changed.has(s.id) && [fresh.name, item.name].some((n) => names(s).includes(norm(n))));
+    if (!match) continue;
+    ids.set(fresh.id, match.id);
+    changed.set(match.id, match.variants?.length && !fresh.variants?.length ? match : refreshed(match, fresh, variantIds));
+  }
+
+  const items = result.items.map((i): EntryItem => {
+    const libraryItemId = i.libraryItemId && ids.get(i.libraryItemId);
+    if (!libraryItemId) return i;
+    const variantId = i.variantId && (variantIds.get(i.variantId) ?? i.variantId);
+    const next: EntryItem = { ...i, libraryItemId };
+    // A link to an unchanged item with variants names no version of it.
+    if (variantId && changed.get(libraryItemId)?.variants?.some((v) => v.id === variantId)) next.variantId = variantId;
+    else delete next.variantId;
+    return next;
+  });
+  return {
+    items,
+    added: result.added.filter((a) => !ids.has(a.id)),
+    updated: [...result.updated, ...[...changed.values()].filter((l) => !stale.includes(l))],
+  };
+}
