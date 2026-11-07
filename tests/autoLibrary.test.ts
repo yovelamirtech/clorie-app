@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { withAutoLibrary } from '../src/utils/autoLibrary';
+import { refreshStale, withAutoLibrary } from '../src/utils/autoLibrary';
 import type { ParsedItem } from '../src/ai/food';
-import type { LibraryItem } from '../src/types';
+import type { EntryItem, LibraryItem } from '../src/types';
 
 const lib: LibraryItem[] = [
   { id: 'egg', name: 'ביצה', aliases: ['ביצים'], unit: 'יחידה', caloriesPerUnit: 73, updatedAt: '2020-01-01T00:00:00.000Z' },
@@ -145,5 +145,77 @@ describe('withAutoLibrary', () => {
       expect(added[0].variants?.map((v) => v.label)).toEqual(['ביתי', 'מקדונלדס']);
       expect(items[1].variantId).toBe(added[0].variants?.[1].id);
     });
+  });
+});
+
+describe('refreshStale', () => {
+  const stale = (extra: Partial<LibraryItem> = {}): LibraryItem => ({
+    id: 'ham', name: 'האם', aliases: [], unit: '100 גרם', caloriesPerUnit: 240, proteinPerUnit: 18, mealTypes: ['lunch'], unverified: true, updatedAt: '2020-01-01T00:00:00.000Z', ...extra,
+  });
+  const oldItem: EntryItem = { id: 'old', name: 'Ham', quantity: '50 גרם', calories: 120, protein: 9, libraryItemId: 'ham', addedToLibrary: true };
+  const hamSuggestion = { name: 'האם', unit: '100 גרם', caloriesPerUnit: 110, proteinPerUnit: 17, statedByUser: false };
+
+  it('updates the stale item in place instead of adding a duplicate', () => {
+    const auto = withAutoLibrary([parsed('Ham', hamSuggestion)], lib, 'dinner');
+    const { items, added, updated } = refreshStale(auto, [stale()], [oldItem]);
+    expect(added).toEqual([]);
+    expect(updated).toHaveLength(1);
+    expect(updated[0]).toMatchObject({ id: 'ham', name: 'האם', caloriesPerUnit: 110, proteinPerUnit: 17, mealTypes: ['lunch'], unverified: true });
+    expect(updated[0].aliases).toEqual(['Ham']);
+    expect(items[0]).toMatchObject({ libraryItemId: 'ham', addedToLibrary: true });
+  });
+
+  it('matches by the name of the old entry item that linked to it', () => {
+    const auto = withAutoLibrary([parsed('Ham', { ...hamSuggestion, name: 'נקניק חזיר' })], lib, 'dinner');
+    const { items, added, updated } = refreshStale(auto, [stale()], [oldItem]);
+    expect(added).toEqual([]);
+    expect(updated[0]).toMatchObject({ id: 'ham', caloriesPerUnit: 110 });
+    expect(items[0].libraryItemId).toBe('ham');
+  });
+
+  it('a value the user stated makes it verified', () => {
+    const auto = withAutoLibrary([parsed('Ham', { ...hamSuggestion, statedByUser: true })], lib, 'dinner');
+    expect(refreshStale(auto, [stale()], [oldItem]).updated[0].unverified).toBeUndefined();
+  });
+
+  it('adds a food that matches no stale item, and leaves an unmatched stale item alone', () => {
+    const auto = withAutoLibrary([parsed('נקניקיות', suggestion('נקניקיה'))], lib, 'dinner');
+    const { added, updated } = refreshStale(auto, [stale()], [oldItem]);
+    expect(added.map((a) => a.name)).toEqual(['נקניקיה']);
+    expect(updated).toEqual([]);
+  });
+
+  it('updates a version it has by label, keeping its id, and adds a new one', () => {
+    const shawarma = stale({
+      id: 'sh', name: 'שווארמה בלאפה', unit: 'מנה', caloriesPerUnit: 950,
+      variants: [{ id: 'v1', label: 'בלי צ\'יפס', caloriesPerUnit: 950, unverified: true }],
+    });
+    const old: EntryItem = { ...oldItem, name: 'לאפה שווארמה', libraryItemId: 'sh', variantId: 'v1' };
+    const s = (variant: string, caloriesPerUnit: number) => ({ name: 'שווארמה בלאפה', unit: 'מנה', caloriesPerUnit, proteinPerUnit: 50, statedByUser: false, variant });
+
+    const same = refreshStale(withAutoLibrary([parsed('לאפה שווארמה', s('בלי צ\'יפס', 1040))], lib, 'lunch'), [shawarma], [old]);
+    expect(same.updated[0].variants).toEqual([{ id: 'v1', label: 'בלי צ\'יפס', caloriesPerUnit: 1040, proteinPerUnit: 50, unverified: true }]);
+    expect(same.updated[0].caloriesPerUnit).toBe(1040);
+    expect(same.items[0]).toMatchObject({ libraryItemId: 'sh', variantId: 'v1' });
+
+    const other = refreshStale(withAutoLibrary([parsed('לאפה שווארמה', s('עם צ\'יפס', 1250))], lib, 'lunch'), [shawarma], [old]);
+    expect(other.updated[0].variants?.map((v) => v.label)).toEqual(['בלי צ\'יפס', 'עם צ\'יפס']);
+    expect(other.updated[0].caloriesPerUnit).toBe(950);
+    expect(other.items[0]).toMatchObject({ libraryItemId: 'sh', variantId: other.updated[0].variants?.[1].id });
+  });
+
+  it('just links to a stale item with variants when the suggestion has no version', () => {
+    const shawarma = stale({ id: 'sh', name: 'שווארמה בלאפה', unit: 'מנה', variants: [{ id: 'v1', label: 'רגיל', caloriesPerUnit: 950 }] });
+    const auto = withAutoLibrary([parsed('שווארמה בלאפה', { ...hamSuggestion, name: 'שווארמה בלאפה', unit: 'מנה' })], lib, 'lunch');
+    const { items, added, updated } = refreshStale(auto, [shawarma], []);
+    expect(added).toEqual([]);
+    expect(updated).toEqual([]);
+    expect(items[0].libraryItemId).toBe('sh');
+    expect(items[0].variantId).toBeUndefined();
+  });
+
+  it('changes nothing without stale items', () => {
+    const auto = withAutoLibrary([parsed('נקניקיות', suggestion('נקניקיה'))], lib, 'dinner');
+    expect(refreshStale(auto, [], [])).toBe(auto);
   });
 });

@@ -141,6 +141,7 @@ type Props = {
 /** Loading / clarification / error card shown inside the entry list, one per queued message. */
 export function PendingCard({ item: p, viewDate, onAnswer, onRetry, onCancel }: Props) {
   const otherDay = p.date !== viewDate ? <div className="text-[0.8rem] text-muted mb-1.5">רישום ל{dayLabel(p.date)}</div> : null;
+  const recalc = p.recalcOf ? <div className="text-[0.8rem] text-muted mb-1.5">חישוב מחדש</div> : null;
 
   return (
     <div
@@ -148,6 +149,7 @@ export function PendingCard({ item: p, viewDate, onAnswer, onRetry, onCancel }: 
       aria-live="polite"
     >
       {otherDay}
+      {recalc}
       {p.phase === 'loading' && <LoadingBody item={p} onCancel={onCancel} />}
       {p.phase === 'clarify' && <div className="text-muted text-[0.85rem] whitespace-pre-wrap mb-2">{p.text}</div>}
       {p.phase === 'clarify' && <ClarifyForm questions={p.questions} onSubmit={onAnswer} onCancel={onCancel} />}

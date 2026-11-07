@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AddFlow } from '../hooks/addFlow';
+import { canRecalc, type AddFlow } from '../hooks/addFlow';
 import type { SuggestFlow } from '../hooks/suggestFlow';
 import { useStore } from '../store/store';
 import type { MealType } from '../types';
@@ -11,7 +11,8 @@ import { Composer } from '../components/Composer';
 import { DateHeader } from '../components/DateHeader';
 import { DaySummary } from '../components/DaySummary';
 import { EntryCard } from '../components/EntryCard';
-import { Plus } from '../components/Icons';
+import { Plus, Refresh } from '../components/Icons';
+import { ConfirmDialog } from '../components/Dialog';
 import { ManualEntryForm } from '../components/ManualEntryForm';
 import { MealSuggest } from '../components/MealSuggest';
 import { PendingCard } from '../components/PendingCard';
@@ -30,6 +31,7 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [addingManual, setAddingManual] = useState(false);
+  const [confirmRecalc, setConfirmRecalc] = useState(false);
   // The meal marked for the next message or quick pick; null = by the time. Cleared on another day.
   const [meal, setMeal] = useState<MealType | null>(null);
   useEffect(() => setMeal(null), [date]);
@@ -44,6 +46,8 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
   );
   const eatenItems = dayEntries.filter((e) => !e.planned).flatMap((e) => e.items);
   const plannedCalories = sumCalories(dayEntries.filter((e) => e.planned).flatMap((e) => e.items));
+  // Entries a recalculation would send again: worked out by the AI, unchanged by hand, not already on their way.
+  const recalcCount = dayEntries.filter((e) => canRecalc(e) && !flow.queue.some((q) => q.recalcOf === e.id)).length;
   const picks = useMemo(() => quickPicks(entries, library, new Date(), undefined, meal ?? undefined), [entries, library, meal]);
 
   const addPick = (pick: QuickPick): string => {
@@ -113,12 +117,39 @@ export function TodayScreen({ date, onDateChange, flow, suggest }: Props) {
           </div>
         ))}
 
-        <button className="btn self-center text-muted" onClick={() => setAddingManual(true)}>
-          <Plus size={18} /> הוסף רישום
-        </button>
+        <div className="flex flex-wrap justify-center gap-2">
+          <button className="btn text-muted" onClick={() => setAddingManual(true)}>
+            <Plus size={18} /> הוסף רישום
+          </button>
+          {recalcCount > 0 && (
+            <button className="btn text-muted" onClick={() => setConfirmRecalc(true)}>
+              <Refresh size={18} /> חישוב מחדש
+            </button>
+          )}
+        </div>
 
         <QuickPicks picks={picks} onPick={addPick} onUndo={actions.deleteEntry} />
       </div>
+
+      {confirmRecalc && (
+        <ConfirmDialog
+          title={`לחשב מחדש את ${isToday ? 'היום' : 'היום הזה'}?`}
+          message={
+            <>
+              <p className="m-0">
+                {recalcCount === 1 ? 'רישום אחד יישלח' : `${recalcCount} רישומים יישלחו`} שוב ל-AI, עם התשובות שכבר נתת, והתוצאה תחליף את הפריטים שלהם.
+              </p>
+              <p className="m-0 mt-2">רישומים ששינית ידנית או שחושבו מהמאגר לא ישתנו. מזון שה-AI הוסיף למאגר מהרישומים האלה ועוד לא נבדק יתעדכן לערך החדש.</p>
+            </>
+          }
+          confirmLabel="חישוב מחדש"
+          onCancel={() => setConfirmRecalc(false)}
+          onConfirm={() => {
+            setConfirmRecalc(false);
+            flow.recalc(date);
+          }}
+        />
+      )}
 
       {addingManual && (
         <ManualEntryForm

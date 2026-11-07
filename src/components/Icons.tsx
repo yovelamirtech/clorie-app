@@ -30,3 +30,5 @@ export const Book = ({ size = 16 }: P) =>
   svg(size, <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" /><path d="M4 19.5V21h16" /></>);
 export const Clock = ({ size = 18 }: P) => svg(size, <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>);
 export const Check = ({ size = 18 }: P) => svg(size, <path d="M20 6 9 17l-5-5" />);
+export const Refresh = ({ size = 18 }: P) =>
+  svg(size, <><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8" /><path d="M21 3v5h-5" /></>);

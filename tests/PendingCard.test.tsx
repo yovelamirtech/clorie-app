@@ -26,6 +26,13 @@ describe('PendingCard', () => {
     expect(container.textContent).toContain('רישום להיום');
   });
 
+  it('marks a recalculation', () => {
+    const { container } = setup({ ...loading(), recalcOf: 'e' });
+    expect(container.textContent).toContain('חישוב מחדש');
+    setup(loading());
+    expect(screen.getAllByText('חישוב מחדש')).toHaveLength(1);
+  });
+
   it('doesn\'t name the day being viewed', () => {
     const { container } = setup(loading());
     expect(container.textContent).not.toContain('רישום ל');

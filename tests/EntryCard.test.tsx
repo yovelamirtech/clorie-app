@@ -205,6 +205,8 @@ describe('EntryCard', () => {
       fireEvent.click(within(dialog).getByRole('button', { name: 'מחיקה' }));
       await flush();
       expect(current()!.items.map((i) => i.name)).toEqual(['לחם']);
+      // Changed by hand, so recalculating the day leaves it alone.
+      expect(current()!.editedByUser).toBe(true);
     });
 
     it('keeps the item when cancelled', async () => {
