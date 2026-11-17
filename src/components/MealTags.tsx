@@ -16,6 +16,8 @@ export function MealTags({ value, onChange }: Props) {
           type="button"
           aria-pressed={value === m}
           className={`chip flex-1 min-w-0 !min-h-[28px] !px-2 text-[0.8rem] ${value === m ? 'chip-on' : 'text-muted'}`}
+          // Keep the focus (and the phone keyboard) on the text box while marking a meal.
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => onChange(value === m ? null : m)}
         >
           {MEAL_LABELS[m]}

@@ -25,4 +25,19 @@ describe('MealTags', () => {
     fireEvent.click(screen.getByRole('button', { name: 'צהריים' }));
     expect(onChange).toHaveBeenCalledWith(null);
   });
+
+  it('does not take the focus from the text box when tapped', () => {
+    render(
+      <>
+        <textarea aria-label="טקסט" />
+        <MealTags value={null} onChange={() => {}} />
+      </>,
+    );
+    const box = screen.getByRole('textbox');
+    box.focus();
+    const tag = screen.getByRole('button', { name: 'בוקר' });
+    expect(fireEvent.mouseDown(tag)).toBe(false); // default (moving the focus) prevented
+    fireEvent.click(tag);
+    expect(document.activeElement).toBe(box);
+  });
 });
