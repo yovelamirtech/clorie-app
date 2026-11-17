@@ -192,11 +192,19 @@ describe('validateResult: needs_clarification', () => {
 });
 
 describe('SYSTEM_PROMPT: safety margin', () => {
-  it('asks for realistic estimates with one ~10% margin per item, not the upper part of every range', () => {
-    expect(SYSTEM_PROMPT).toContain('about 10% to the item');
-    expect(SYSTEM_PROMPT).toContain('once per item');
+  it('asks for realistic estimates with one margin per item, not the upper part of every range', () => {
+    expect(SYSTEM_PROMPT).toContain('once per item, sized by how uncertain the estimate is');
     expect(SYSTEM_PROMPT).not.toContain('take the upper part of its realistic range');
     expect(SYSTEM_PROMPT).not.toContain('generous regular stand portion');
+  });
+
+  it('grades the margin: ~5% for simple foods, ~10% for home-made food, ~15% for restaurant and fried food', () => {
+    expect(SYSTEM_PROMPT).toContain('About 5%: a simple, single food');
+    expect(SYSTEM_PROMPT).toContain('About 10%: home-made or home-cooked food');
+    expect(SYSTEM_PROMPT).toContain('About 15%: a restaurant or street-food dish');
+    expect(SYSTEM_PROMPT).toContain('use the lower one');
+    expect(SYSTEM_PROMPT).toContain('the 15% margin may bring a dish toward their top');
+    expect(SYSTEM_PROMPT).not.toContain('the 10% margin');
   });
 });
 
