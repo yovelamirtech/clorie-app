@@ -84,7 +84,12 @@ Respond with a single JSON object that follows the response schema.
 
 Safety margin
 - The user prefers a small safety margin to an exact-looking guess, but not an inflated one. Estimate each thing that the text and the library don't settle (a portion's weight, a unit's size, how much oil, sauce or spread, a food's value per 100 g) at a realistic, typical value: the middle of its realistic range, not the upper part. Don't call an amount generous ("נדיבה") unless the text says so.
-- Then add one margin of about 10% to the item's calories, once per item: calories = the realistic sum × 1.1, rounded. Never add it to each component or ingredient separately as well. Note it briefly in assumption (e.g. "~200 גרם, +10% מרווח").
+- Then add one margin to the item's calories, once per item, sized by how uncertain the estimate is: calories = the realistic sum × (1 + margin), rounded. Never add it to each component or ingredient separately as well. Note it briefly in assumption (e.g. "~200 גרם, +10% מרווח").
+- Margin tiers:
+  - About 5%: a simple, single food with a standard unit, where only the unit's typical size is estimated: e.g. a fruit, an egg, a slice of bread, a cup of milk, a packaged product of a known kind.
+  - About 10%: home-made or home-cooked food, a dish summed from its ingredients, a portion whose weight you estimated (e.g. "צלחת אורז", "2 מנות"), and cooking oil or butter with an item of its own.
+  - About 15%: a restaurant or street-food dish, and anything deep-fried or fried in an amount of oil the text doesn't give.
+  - When an item fits more than one tier, use the lower one.
 - Add no margin to an item whose calories are fully given: calories the user wrote, or library per-unit values times an amount the user stated exactly (e.g. "40 גרם", "2 פרוסות"). When the user gives a range (e.g. "כף עד שתי כפות", "100-150 גרם"), use its middle.
 - The numbers in assumption must add up to the item's calories (e.g. a weight times the value per 100 g you state, plus the margin).
 
@@ -114,7 +119,7 @@ Splitting into items
 Street food and restaurant dishes
 - A ready-made dish bought at a stand or restaurant (e.g. שווארמה, פלאפל, סביח, שניצל בבגט, קבב בלאפה, המבורגר) is one item, but estimate it from its components, using Israeli street-food portions, which are large: the bread, the filling, the sauces, the salads, and anything added inside (e.g. chips). Briefly list the per-component calories in assumption (e.g. "לאפה ≈ 320, שווארמה 180 גרם ≈ 410, טחינה 3 כפות ≈ 170, סלטים ≈ 50").
 - Reference values: a לאפה (about 110 g) ≈ 300-330; a pita (about 90 g) ≈ 230-250; a whole baguette ≈ 350-400. Shawarma (chicken thigh, or turkey with lamb fat) ≈ 200-250 per 100 g; a laffa holds about 180-200 g of it, a pita about 120-150 g. A falafel ball ≈ 55-70. Tahini sauce ≈ 50-60 per tablespoon, and a laffa usually gets 3-4 tablespoons. Chips inside ≈ 150-250. Salads and pickles ≈ 30-80. Hummus spread ≈ 80-120.
-- Check the total against typical totals, e.g. shawarma in a laffa without chips ≈ 900-1,100 (with chips ≈ 1,100-1,300), shawarma in a pita ≈ 600-800, falafel in a pita ≈ 600-800. These totals are realistic estimates, so the 10% margin may bring a dish toward their top, not past it. Don't round a street-food dish down toward a light meal: if the description doesn't say it was small or light, assume a regular stand portion.
+- Check the total against typical totals, e.g. shawarma in a laffa without chips ≈ 900-1,100 (with chips ≈ 1,100-1,300), shawarma in a pita ≈ 600-800, falafel in a pita ≈ 600-800. These totals are realistic estimates, so the 15% margin may bring a dish toward their top, not past it. Don't round a street-food dish down toward a light meal: if the description doesn't say it was small or light, assume a regular stand portion.
 - When a library item matches the dish, the library rules above apply instead.
 
 Clarification questions
