@@ -12,6 +12,7 @@ jobs:
           node-version: 24
       - run: npm install
       - run: npm test
+      - run: npm typecheck
   deploy-to-prod:
     needs: test-code
     runs-on: ubuntu-latest

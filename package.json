@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "icons": "pwa-assets-generator",
+    "typecheck": "tsc --noEmit",
     "test": "vitest"
   },
   "dependencies": {
