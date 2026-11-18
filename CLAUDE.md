@@ -2,7 +2,11 @@
 
 ## Git workflow
 - Open regular pull requests, not drafts.
-- Merge the PR yourself (squash) once `npm run build` and `npm test -- --run` pass. The project has no linter; the build (`tsc -b && vite build`) and the unit tests are the checks.
+- Merge the PR yourself (squash) once `npm run build`, `npm run lint` and `npm test -- --run` pass. Lint warnings don't block; errors do.
+
+## TypeScript and ESLint
+- `typescript` in `package.json` is an alias for `@typescript/typescript6` (the TS 6 API), because typescript-eslint can't use TypeScript 7, which has no JS API yet. The compiler is TypeScript 7 under the alias `@typescript/native`, so `tsc` and the build use 7. Don't "fix" the alias back to `typescript@7`, or ESLint breaks.
+- ESLint config is `eslint.config.js`. The React Compiler rules from `eslint-plugin-react-hooks` v7 (`set-state-in-effect`, `refs`, `globals`) are warnings because existing code predates them.
 - Merging to `main` deploys to GitHub Pages automatically.
 
 ## Tests

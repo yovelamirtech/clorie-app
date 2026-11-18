@@ -11,6 +11,7 @@ npm run dev
 
 - `npm run build` – בדיקת טיפוסים ובנייה ל-`dist/`.
 - `npm run preview` – הרצת הבנייה (כולל service worker).
+- `npm run lint` – בדיקת הקוד עם ESLint.
 - `npm run icons` – יצירה מחדש של האייקונים מ-`public/icon.svg`.
 
 ## פריסה ל-GitHub Pages

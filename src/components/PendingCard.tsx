@@ -78,7 +78,7 @@ function ClarifyForm({ questions, onSubmit, onCancel }: {
 }
 
 function useNow(ms: number, active: boolean) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(Date.now);
   useEffect(() => {
     if (!active) return;
     const id = setInterval(() => setNow(Date.now()), ms);
