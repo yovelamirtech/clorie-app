@@ -131,6 +131,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={{ ...data, actions }}>{children}</Ctx.Provider>;
 }
 
+// The hook stays next to its Provider; this only costs a full reload instead of Fast Refresh in dev.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStore(): Store {
   const s = useContext(Ctx);
   if (!s) throw new Error('useStore outside StoreProvider');
